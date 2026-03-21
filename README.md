@@ -130,7 +130,9 @@ BOCRA-Backend/
 │   │   ├── complaints.md
 │   │   ├── publications.md
 │   │   ├── tenders.md
-│   │   └── analytics.md
+│   │   ├── analytics.md
+│   │   ├── news.md
+│   │   └── notifications.md
 │   ├── architecture.md
 │   ├── development-plan.md
 │   ├── data-models.md
@@ -327,6 +329,8 @@ Detailed documentation lives in the [`docs/`](docs/) folder:
 | [Publications](docs/api/publications.md) | 11 | Documents, reports, publish/archive workflow |
 | [Tenders](docs/api/tenders.md) | 14 | Procurement, documents, addenda, award workflow |
 | [Analytics](docs/api/analytics.md) | 8 | Dashboards, telecoms, QoS stats |
+| [News](docs/api/news.md) | 10 | Articles, press releases, publish/archive workflow |
+| [Notifications](docs/api/notifications.md) | 5 | In-app notifications, read/dismiss |
 
 ---
 

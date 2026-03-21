@@ -217,11 +217,12 @@ SPECTACULAR_SETTINGS = {
         {"name": "Publications — Staff", "description": "Staff management of publications — create, edit, publish, archive."},
         {"name": "Tenders — Public", "description": "Browse open tenders and download documents (no login required)."},
         {"name": "Tenders — Staff", "description": "Staff management of tenders — create, edit, publish, award."},
-        {"name": "News", "description": "BOCRA news articles and announcements."},
+        {"name": "News — Public", "description": "Browse published news articles (no login required)."},
+        {"name": "News — Staff", "description": "Staff management of articles — create, edit, publish, archive."},
         {"name": "Analytics — Public", "description": "Public telecoms statistics and QoS metrics."},
         {"name": "Analytics — Staff", "description": "Staff-only analytics summaries — complaints, licensing."},
         {"name": "Analytics — Dashboard", "description": "Dashboard endpoints — public and staff operational dashboards."},
-        {"name": "Notifications", "description": "In-app and email notification management."},
+        {"name": "Notifications", "description": "In-app notification management — list, read, dismiss."},
         {"name": "Core", "description": "API root and health check."},
     ],
     # JWT Bearer auth displayed in the Swagger UI Authorize dialog
@@ -257,8 +258,12 @@ SPECTACULAR_SETTINGS = {
         "ApplicationStatusEnum": "licensing.models.ApplicationStatus",
         "LicenceStatusEnum": "licensing.models.LicenceStatus",
         "ComplaintStatusEnum": "complaints.models.ComplaintStatus",
-        "PublicationStatusEnum": "publications.models.PublicationStatus",
+        "ComplaintCategoryEnum": "complaints.models.ComplaintCategory",
+        "ContentStatusEnum": "publications.models.PublicationStatus",
+        "PublicationCategoryEnum": "publications.models.PublicationCategory",
         "TenderStatusEnum": "tenders.models.TenderStatus",
+        "TenderCategoryEnum": "tenders.models.TenderCategory",
+        "NewsCategoryEnum": "news.models.NewsCategory",
     },
     # Postprocess hook to add the standard response envelope to all responses
     "POSTPROCESSING_HOOKS": [
