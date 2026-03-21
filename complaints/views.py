@@ -212,6 +212,8 @@ class MyComplaintsView(generics.ListAPIView):
     ordering = ["-created_at"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            return Complaint.objects.none()
         return Complaint.objects.filter(
             complainant=self.request.user, is_deleted=False
         )
@@ -239,6 +241,8 @@ class ComplaintDetailView(generics.RetrieveAPIView):
     permission_classes = [IsAuthenticated]
 
     def get_serializer_class(self):
+        if getattr(self, "swagger_fake_view", False):
+            return ComplaintDetailSerializer
         user = self.request.user
         if user.role in (UserRole.STAFF, UserRole.ADMIN, UserRole.SUPERADMIN):
             return StaffComplaintDetailSerializer

@@ -33,7 +33,9 @@ from drf_spectacular.utils import (
     OpenApiParameter,
     OpenApiTypes,
     extend_schema,
+    inline_serializer,
 )
+from rest_framework import serializers as drf_serializers
 
 from accounts.permissions import IsStaff
 from core.utils import api_error, api_success
@@ -228,6 +230,7 @@ class QoSListView(generics.ListAPIView):
         OpenApiParameter("start_date", OpenApiTypes.DATE, OpenApiParameter.QUERY, required=False),
         OpenApiParameter("end_date", OpenApiTypes.DATE, OpenApiParameter.QUERY, required=False),
     ],
+    responses={200: OpenApiTypes.OBJECT},
 )
 class QoSByOperatorView(APIView):
     """
@@ -268,7 +271,7 @@ class QoSByOperatorView(APIView):
 
 # ─── COMPLAINTS SUMMARY (Staff) ───────────────────────────────────────────────
 
-@extend_schema(tags=["Analytics — Staff"], summary="Complaint analytics summary (staff)")
+@extend_schema(tags=["Analytics — Staff"], summary="Complaint analytics summary (staff)", responses={200: OpenApiTypes.OBJECT})
 class ComplaintsSummaryView(APIView):
     """
     GET /api/v1/analytics/complaints/summary/
@@ -356,7 +359,7 @@ class ComplaintsSummaryView(APIView):
 
 # ─── LICENSING SUMMARY (Staff) ────────────────────────────────────────────────
 
-@extend_schema(tags=["Analytics — Staff"], summary="Licensing analytics summary (staff)")
+@extend_schema(tags=["Analytics — Staff"], summary="Licensing analytics summary (staff)", responses={200: OpenApiTypes.OBJECT})
 class LicensingSummaryView(APIView):
     """
     GET /api/v1/analytics/licensing/summary/
@@ -438,7 +441,7 @@ class LicensingSummaryView(APIView):
 
 # ─── PUBLIC DASHBOARD ──────────────────────────────────────────────────────────
 
-@extend_schema(tags=["Analytics — Dashboard"], summary="Public dashboard — aggregated safe stats")
+@extend_schema(tags=["Analytics — Dashboard"], summary="Public dashboard — aggregated safe stats", responses={200: OpenApiTypes.OBJECT})
 class PublicDashboardView(APIView):
     """
     GET /api/v1/analytics/dashboard/public/
@@ -501,7 +504,7 @@ class PublicDashboardView(APIView):
 
 # ─── STAFF DASHBOARD ──────────────────────────────────────────────────────────
 
-@extend_schema(tags=["Analytics — Dashboard"], summary="Staff dashboard — full operational metrics")
+@extend_schema(tags=["Analytics — Dashboard"], summary="Staff dashboard — full operational metrics", responses={200: OpenApiTypes.OBJECT})
 class StaffDashboardView(APIView):
     """
     GET /api/v1/analytics/dashboard/staff/
