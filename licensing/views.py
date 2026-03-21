@@ -86,7 +86,7 @@ logger = logging.getLogger(__name__)
 
 # ─── LICENCE TYPES (Public) ───────────────────────────────────────────────────
 
-@extend_schema(tags=["Licensing — Public"])
+@extend_schema(tags=["Licensing — Public"], summary="List all active licence types")
 class LicenceTypeListView(generics.ListAPIView):
     """
     GET /api/v1/licensing/types/
@@ -114,7 +114,7 @@ class LicenceTypeListView(generics.ListAPIView):
         )
 
 
-@extend_schema(tags=["Licensing — Public"])
+@extend_schema(tags=["Licensing — Public"], summary="Retrieve a licence type with full requirements")
 class LicenceTypeDetailView(generics.RetrieveAPIView):
     """
     GET /api/v1/licensing/types/<pk>/
@@ -140,6 +140,7 @@ class LicenceTypeDetailView(generics.RetrieveAPIView):
 
 @extend_schema(
     tags=["Licensing — Public"],
+    summary="Verify a licence by number or company name",
     parameters=[
         OpenApiParameter(
             "licence_no",
@@ -165,6 +166,7 @@ class LicenceVerifyView(APIView):
     """
 
     permission_classes = [AllowAny]
+    serializer_class = LicenceVerifySerializer
 
     def get(self, request):
         licence_no = request.query_params.get("licence_no", "").strip()
@@ -198,7 +200,7 @@ class LicenceVerifyView(APIView):
 
 # ─── MY APPLICATIONS (Applicant) ──────────────────────────────────────────────
 
-@extend_schema(tags=["Licensing — Applications"])
+@extend_schema(tags=["Licensing — Applications"], summary="List or submit my licence applications")
 class MyApplicationsView(generics.ListCreateAPIView):
     """
     GET  /api/v1/licensing/applications/  — list my applications
@@ -266,7 +268,7 @@ class MyApplicationsView(generics.ListCreateAPIView):
 
 # ─── APPLICATION DETAIL (Applicant) ───────────────────────────────────────────
 
-@extend_schema(tags=["Licensing — Applications"])
+@extend_schema(tags=["Licensing — Applications"], summary="Retrieve application details and status timeline")
 class ApplicationDetailView(generics.RetrieveAPIView):
     """
     GET /api/v1/licensing/applications/<pk>/
@@ -280,7 +282,7 @@ class ApplicationDetailView(generics.RetrieveAPIView):
     def get_serializer_class(self):
         user = self.request.user
         from accounts.models import UserRole
-        if user.role in (UserRole.STAFF, UserRole.ADMIN, UserRole.SUPERADMIN):
+        if hasattr(user, 'role') and user.role in (UserRole.STAFF, UserRole.ADMIN, UserRole.SUPERADMIN):
             return StaffApplicationDetailSerializer
         return ApplicationDetailSerializer
 
@@ -306,7 +308,7 @@ class ApplicationDetailView(generics.RetrieveAPIView):
 
 # ─── CANCEL APPLICATION (Applicant) ───────────────────────────────────────────
 
-@extend_schema(tags=["Licensing — Applications"])
+@extend_schema(tags=["Licensing — Applications"], summary="Cancel a draft or submitted application")
 class CancelApplicationView(APIView):
     """
     PATCH /api/v1/licensing/applications/<pk>/cancel/
@@ -316,6 +318,7 @@ class CancelApplicationView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    serializer_class = ApplicationListSerializer
 
     def patch(self, request, pk):
         application = get_object_or_404(
@@ -341,7 +344,7 @@ class CancelApplicationView(APIView):
 
 # ─── DOCUMENT UPLOAD ──────────────────────────────────────────────────────────
 
-@extend_schema(tags=["Licensing — Applications"])
+@extend_schema(tags=["Licensing — Applications"], summary="Upload a supporting document to an application")
 class UploadDocumentView(APIView):
     """
     POST /api/v1/licensing/applications/<pk>/documents/
@@ -352,6 +355,7 @@ class UploadDocumentView(APIView):
 
     permission_classes = [IsAuthenticated]
     parser_classes = [MultiPartParser, FormParser]
+    serializer_class = DocumentUploadSerializer
 
     def get_application(self, pk, user):
         from accounts.models import UserRole
@@ -405,7 +409,7 @@ class UploadDocumentView(APIView):
 
 # ─── UPDATE APPLICATION STATUS (Staff) ────────────────────────────────────────
 
-@extend_schema(tags=["Licensing — Staff"])
+@extend_schema(tags=["Licensing — Staff"], summary="Update application status and drive the review workflow (staff)")
 class UpdateApplicationStatusView(APIView):
     """
     PATCH /api/v1/licensing/applications/<pk>/status/
@@ -417,6 +421,7 @@ class UpdateApplicationStatusView(APIView):
     """
 
     permission_classes = [IsStaff]
+    serializer_class = StatusUpdateSerializer
 
     def patch(self, request, pk):
         application = get_object_or_404(
@@ -524,7 +529,7 @@ def _create_licence_from_application(application: Application, approved_by) -> L
 
 # ─── STAFF APPLICATION QUEUE ──────────────────────────────────────────────────
 
-@extend_schema(tags=["Licensing — Staff"])
+@extend_schema(tags=["Licensing — Staff"], summary="List all applications across all users (staff)")
 class StaffApplicationListView(generics.ListAPIView):
     """
     GET /api/v1/licensing/staff/applications/
@@ -558,7 +563,7 @@ class StaffApplicationListView(generics.ListAPIView):
         )
 
 
-@extend_schema(tags=["Licensing — Staff"])
+@extend_schema(tags=["Licensing — Staff"], summary="Retrieve any application with internal staff notes")
 class StaffApplicationDetailView(generics.RetrieveAPIView):
     """
     GET /api/v1/licensing/staff/applications/<pk>/
@@ -586,7 +591,7 @@ class StaffApplicationDetailView(generics.RetrieveAPIView):
 
 # ─── MY LICENCES (Applicant) ──────────────────────────────────────────────────
 
-@extend_schema(tags=["Licensing — Licences"])
+@extend_schema(tags=["Licensing — Licences"], summary="List my active and historical licences")
 class MyLicencesView(generics.ListAPIView):
     """
     GET /api/v1/licensing/licences/
@@ -618,7 +623,7 @@ class MyLicencesView(generics.ListAPIView):
 
 # ─── LICENCE DETAIL ───────────────────────────────────────────────────────────
 
-@extend_schema(tags=["Licensing — Licences"])
+@extend_schema(tags=["Licensing — Licences"], summary="Retrieve full licence details")
 class LicenceDetailView(generics.RetrieveAPIView):
     """
     GET /api/v1/licensing/licences/<pk>/
@@ -651,7 +656,7 @@ class LicenceDetailView(generics.RetrieveAPIView):
 
 # ─── LICENCE RENEWAL ──────────────────────────────────────────────────────────
 
-@extend_schema(tags=["Licensing — Licences"])
+@extend_schema(tags=["Licensing — Licences"], summary="Submit a renewal application for an existing licence")
 class LicenceRenewView(APIView):
     """
     POST /api/v1/licensing/licences/<pk>/renew/
@@ -662,6 +667,7 @@ class LicenceRenewView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
+    serializer_class = ApplicationListSerializer
 
     def post(self, request, pk):
         licence = get_object_or_404(
@@ -730,7 +736,11 @@ class LicenceRenewView(APIView):
 
 # ─── LICENCE CERTIFICATE DOWNLOAD ─────────────────────────────────────────────
 
-@extend_schema(tags=["Licensing — Licences"])
+@extend_schema(
+    tags=["Licensing — Licences"],
+    summary="Download PDF licence certificate",
+    responses={(200, "application/pdf"): OpenApiTypes.BINARY},
+)
 class LicenceCertificateView(APIView):
     """
     GET /api/v1/licensing/licences/<pk>/certificate/

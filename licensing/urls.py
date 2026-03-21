@@ -47,6 +47,3 @@ urlpatterns = [
     path("staff/applications/",           StaffApplicationListView.as_view(),   name="staff-applications"),
     path("staff/applications/<uuid:pk>/", StaffApplicationDetailView.as_view(), name="staff-application-detail"),
 ]
-
-
-urlpatterns = []

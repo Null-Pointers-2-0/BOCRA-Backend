@@ -68,7 +68,7 @@ logger = logging.getLogger(__name__)
 
 # ─── REGISTRATION ─────────────────────────────────────────────────────────────
 
-@extend_schema(tags=["Auth"])
+@extend_schema(tags=["Auth"], summary="Register a new user account")
 class RegisterView(generics.CreateAPIView):
     """
     POST /api/v1/accounts/register/
@@ -116,7 +116,7 @@ class RegisterView(generics.CreateAPIView):
 
 # ─── EMAIL VERIFICATION ───────────────────────────────────────────────────────
 
-@extend_schema(tags=["Auth"])
+@extend_schema(tags=["Auth"], summary="Verify email address via token link")
 class EmailVerificationView(APIView):
     """
     GET /api/v1/accounts/verify-email/?token=<jwt>
@@ -170,7 +170,7 @@ class EmailVerificationView(APIView):
         )
 
 
-@extend_schema(tags=["Auth"])
+@extend_schema(tags=["Auth"], summary="Resend email verification link")
 class ResendVerificationView(APIView):
     """
     POST /api/v1/accounts/resend-verification/
@@ -212,7 +212,7 @@ class ResendVerificationView(APIView):
 
 # ─── LOGIN ────────────────────────────────────────────────────────────────────
 
-@extend_schema(tags=["Auth"])
+@extend_schema(tags=["Auth"], summary="Authenticate and obtain JWT tokens")
 class LoginView(APIView):
     """
     POST /api/v1/accounts/login/
@@ -298,7 +298,7 @@ class LoginView(APIView):
 
 # ─── LOGOUT ───────────────────────────────────────────────────────────────────
 
-@extend_schema(tags=["Auth"])
+@extend_schema(tags=["Auth"], summary="Blacklist refresh token and log out")
 class LogoutView(APIView):
     """
     POST /api/v1/accounts/logout/
@@ -334,7 +334,7 @@ class LogoutView(APIView):
 
 # ─── PROFILE ──────────────────────────────────────────────────────────────────
 
-@extend_schema(tags=["Profile"])
+@extend_schema(tags=["Profile"], summary="Retrieve or update current user profile")
 class ProfileView(generics.RetrieveUpdateAPIView):
     """
     GET   /api/v1/accounts/profile/  — Retrieve the authenticated user's profile.
@@ -380,7 +380,7 @@ class ProfileView(generics.RetrieveUpdateAPIView):
 
 # ─── PASSWORD RESET ───────────────────────────────────────────────────────────
 
-@extend_schema(tags=["Auth"])
+@extend_schema(tags=["Auth"], summary="Request a password reset email")
 class PasswordResetRequestView(APIView):
     """
     POST /api/v1/accounts/password-reset/
@@ -423,7 +423,7 @@ class PasswordResetRequestView(APIView):
         )
 
 
-@extend_schema(tags=["Auth"])
+@extend_schema(tags=["Auth"], summary="Confirm password reset with uid and token")
 class PasswordResetConfirmView(APIView):
     """
     POST /api/v1/accounts/password-reset/confirm/
@@ -474,7 +474,7 @@ class PasswordResetConfirmView(APIView):
 
 # ─── PASSWORD CHANGE ──────────────────────────────────────────────────────────
 
-@extend_schema(tags=["Auth"])
+@extend_schema(tags=["Auth"], summary="Change password for authenticated user")
 class PasswordChangeView(APIView):
     """
     POST /api/v1/accounts/change-password/
@@ -506,7 +506,7 @@ class PasswordChangeView(APIView):
 
 # ─── USER MANAGEMENT (ADMIN) ─────────────────────────────────────────────────
 
-@extend_schema(tags=["Admin — Users"])
+@extend_schema(tags=["Admin — Users"], summary="List all users (admin only)")
 class UserListView(generics.ListAPIView):
     """
     GET /api/v1/accounts/users/
@@ -548,7 +548,7 @@ class UserListView(generics.ListAPIView):
         )
 
 
-@extend_schema(tags=["Admin — Users"])
+@extend_schema(tags=["Admin — Users"], summary="Retrieve or update a user by ID (admin only)")
 class UserDetailView(generics.RetrieveUpdateAPIView):
     """
     GET   /api/v1/accounts/users/<uuid>/   — Retrieve user detail.

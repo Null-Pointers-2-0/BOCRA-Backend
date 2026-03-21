@@ -32,7 +32,7 @@ class UserManager(BaseUserManager):
     def create_user(self, email, password=None, **extra_fields):
         if not email:
             raise ValueError("Email is required")
-        email = self.model.normalize_email(email)
+        email = self.normalize_email(email)
         extra_fields.setdefault("role", UserRole.REGISTERED)
         extra_fields.setdefault("is_active", True)
         user = self.model(email=email, **extra_fields)
@@ -309,3 +309,16 @@ class Profile(models.Model):
             self.address,
             self.city,
         ])
+
+
+# ─── SIGNALS ──────────────────────────────────────────────────────────────────
+
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+
+@receiver(post_save, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):
+    """Ensure every new User gets a Profile row."""
+    if created:
+        Profile.objects.get_or_create(user=instance)

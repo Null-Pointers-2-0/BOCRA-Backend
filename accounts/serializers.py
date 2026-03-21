@@ -168,7 +168,10 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
             id_number=validated_data.get("id_number", ""),
             role=UserRole.REGISTERED,
         )
-        Profile.objects.create(user=user, id_number=validated_data.get("id_number", ""))
+        profile, _ = Profile.objects.get_or_create(user=user)
+        if validated_data.get("id_number"):
+            profile.id_number = validated_data["id_number"]
+            profile.save(update_fields=["id_number"])
         return user
 
 
@@ -208,7 +211,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         instance.save()
 
-        profile = instance.profile
+        profile = instance.profile if hasattr(instance, 'profile') and Profile.objects.filter(user=instance).exists() else Profile.objects.get_or_create(user=instance)[0]
         for attr, value in profile_data.items():
             setattr(profile, attr, value)
         profile.save()

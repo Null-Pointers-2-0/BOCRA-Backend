@@ -11,7 +11,11 @@ from drf_spectacular.utils import extend_schema
 from core.utils import api_success
 
 
-@extend_schema(tags=["Core"], summary="API root — lists all modules and documentation links")
+@extend_schema(
+    tags=["Core"],
+    summary="API root — lists all modules and documentation links",
+    responses={200: dict},
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def api_root(request):
@@ -48,7 +52,11 @@ def api_root(request):
     )
 
 
-@extend_schema(tags=["Core"], summary="Health check — returns 200 if the service is running")
+@extend_schema(
+    tags=["Core"],
+    summary="Health check — returns 200 if the service is running",
+    responses={200: dict},
+)
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def health_check(request):

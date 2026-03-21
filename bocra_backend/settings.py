@@ -203,10 +203,13 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
     # Group endpoints by the @extend_schema(tags=[...]) decorator on each view
     "TAGS": [
-        {"name": "Auth", "description": "Registration, login, logout, email verification, password management."},
+        {"name": "Auth", "description": "Registration, login, logout, email verification, and password management."},
         {"name": "Profile", "description": "Authenticated user profile retrieval and update."},
         {"name": "Admin — Users", "description": "Admin-only user listing, detail, and role management."},
-        {"name": "Licensing", "description": "Licence types, applications, documents, and issued licences."},
+        {"name": "Licensing — Public", "description": "Public licence type catalogue and licence verification."},
+        {"name": "Licensing — Applications", "description": "Applicant-facing application submission, status tracking, and document upload."},
+        {"name": "Licensing — Licences", "description": "Issued licences — detail, renewal, and certificate download."},
+        {"name": "Licensing — Staff", "description": "Staff-only application queue management and status state machine."},
         {"name": "Complaints", "description": "Complaint submission, tracking, and case management."},
         {"name": "Publications", "description": "Regulatory documents, policies, and reports."},
         {"name": "Tenders", "description": "Open tenders and procurement notices."},
@@ -243,6 +246,11 @@ SPECTACULAR_SETTINGS = {
     "LICENSE": {"name": "Proprietary"},
     # Ensure enum values show labels not just codes in the schema
     "ENUM_GENERATE_CHOICE_DESCRIPTION": True,
+    # Resolve enum naming collisions for the shared `status` field name
+    "ENUM_NAME_OVERRIDES": {
+        "ApplicationStatusEnum": "licensing.models.ApplicationStatus",
+        "LicenceStatusEnum": "licensing.models.LicenceStatus",
+    },
     # Postprocess hook to add the standard response envelope to all responses
     "POSTPROCESSING_HOOKS": [
         "drf_spectacular.hooks.postprocess_schema_enums",
