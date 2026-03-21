@@ -220,7 +220,7 @@ SPECTACULAR_SETTINGS = {
         {"name": "News — Public", "description": "Browse published news articles (no login required)."},
         {"name": "News — Staff", "description": "Staff management of articles — create, edit, publish, archive."},
         {"name": "Analytics — Public", "description": "Public telecoms statistics and QoS metrics."},
-        {"name": "Analytics — Staff", "description": "Staff-only analytics summaries — complaints, licensing."},
+        {"name": "Analytics — Staff", "description": "Staff-only analytics — users, complaints, licensing, publications, tenders, news, and content summaries."},
         {"name": "Analytics — Dashboard", "description": "Dashboard endpoints — public and staff operational dashboards."},
         {"name": "Notifications", "description": "In-app notification management — list, read, dismiss."},
         {"name": "Core", "description": "API root and health check."},
