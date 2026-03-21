@@ -1,0 +1,100 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: bocra_postgres
+    environment:
+      POSTGRES_DB: bocra_db
+      POSTGRES_USER: bocra_user
+      POSTGRES_PASSWORD: bocra_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - bocra_network
+
+  redis:
+    image: redis:7-alpine
+    container_name: bocra_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - bocra_network
+
+  minio:
+    image: minio/minio
+    container_name: bocra_minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    networks:
+      - bocra_network
+
+  django:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bocra_django
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://bocra_user:bocra_password@postgres:5432/bocra_db
+      - REDIS_URL=redis://redis:6379/0
+      - MINIO_ENDPOINT=minio:9000
+    depends_on:
+      - postgres
+      - redis
+      - minio
+    networks:
+      - bocra_network
+
+  celery:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bocra_celery
+    command: celery -A config worker -l INFO
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgres://bocra_user:bocra_password@postgres:5432/bocra_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - bocra_network
+
+  celery-beat:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bocra_celery_beat
+    command: celery -A config beat -l INFO
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgres://bocra_user:bocra_password@postgres:5432/bocra_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - bocra_network
+
+volumes:
+  postgres_data:
+  minio_data:
+
+networks:
+  bocra_network:
+    driver: bridge
