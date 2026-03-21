@@ -176,25 +176,155 @@ CORS_ALLOW_CREDENTIALS = True
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "BOCRA Digital Platform API",
-    "DESCRIPTION": "Unified API for BOCRA's digital platform — licensing, complaints, publications, news, tenders, and analytics.",
+    "DESCRIPTION": (
+        "Unified REST API for the Botswana Communications Regulatory Authority (BOCRA) "
+        "digital platform.\n\n"
+        "## Modules\n"
+        "- **Accounts** — Registration, authentication, profile management\n"
+        "- **Licensing** — Licence applications, renewals, verification\n"
+        "- **Complaints** — Submit and track regulatory complaints\n"
+        "- **Publications** — Documents, regulations, policy papers\n"
+        "- **Tenders** — Open tenders and procurement notices\n"
+        "- **News** — BOCRA announcements and press releases\n"
+        "- **Analytics** — QoS metrics and telecoms statistics\n"
+        "- **Notifications** — In-app and email notification management\n\n"
+        "## Authentication\n"
+        "All protected endpoints require a JWT Bearer token in the `Authorization` header:\n"
+        "```\nAuthorization: Bearer <access_token>\n```\n"
+        "Obtain tokens via `POST /api/v1/accounts/login/`. "
+        "Refresh via `POST /api/v1/accounts/token/refresh/`.\n\n"
+        "## Response Format\n"
+        "All responses use a consistent envelope:\n"
+        "```json\n"
+        '{"success": true, "message": "...", "data": {...}, "errors": null}\n'
+        "```"
+    ),
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+    # Group endpoints by the @extend_schema(tags=[...]) decorator on each view
+    "TAGS": [
+        {"name": "Auth", "description": "Registration, login, logout, email verification, password management."},
+        {"name": "Profile", "description": "Authenticated user profile retrieval and update."},
+        {"name": "Admin — Users", "description": "Admin-only user listing, detail, and role management."},
+        {"name": "Licensing", "description": "Licence types, applications, documents, and issued licences."},
+        {"name": "Complaints", "description": "Complaint submission, tracking, and case management."},
+        {"name": "Publications", "description": "Regulatory documents, policies, and reports."},
+        {"name": "Tenders", "description": "Open tenders and procurement notices."},
+        {"name": "News", "description": "BOCRA news articles and announcements."},
+        {"name": "Analytics", "description": "QoS metrics and telecoms statistics."},
+        {"name": "Notifications", "description": "In-app and email notification management."},
+        {"name": "Core", "description": "API root and health check."},
+    ],
+    # JWT Bearer auth displayed in the Swagger UI Authorize dialog
+    "SECURITY": [{"BearerAuth": []}],
+    "COMPONENTS": {
+        "securitySchemes": {
+            "BearerAuth": {
+                "type": "http",
+                "scheme": "bearer",
+                "bearerFormat": "JWT",
+            }
+        }
+    },
     "SWAGGER_UI_SETTINGS": {
         "persistAuthorization": True,
+        "displayRequestDuration": True,
+        "filter": True,
+        "tryItOutEnabled": True,
     },
+    "REDOC_UI_SETTINGS": {
+        "hideDownloadButton": False,
+    },
+    "CONTACT": {
+        "name": "BOCRA Digital Platform",
+        "email": "digital@bocra.org.bw",
+        "url": "https://www.bocra.org.bw",
+    },
+    "LICENSE": {"name": "Proprietary"},
+    # Ensure enum values show labels not just codes in the schema
+    "ENUM_GENERATE_CHOICE_DESCRIPTION": True,
+    # Postprocess hook to add the standard response envelope to all responses
+    "POSTPROCESSING_HOOKS": [
+        "drf_spectacular.hooks.postprocess_schema_enums",
+    ],
 }
 
 
-# ─── CACHE (REDIS) ───────────────────────────────────────────────────────────
+# ─── CACHE ───────────────────────────────────────────────────────────────────
+# In-process memory cache — no Redis required.
+# Fast enough for this platform's scale; each worker keeps its own cache
+# (rate limit counters, session data). Swap for Redis if multi-worker
+# horizontal scaling becomes a requirement.
 
 CACHES = {
     "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": config("REDIS_URL", default="redis://localhost:6379/0"),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "bocra-backend",
     }
+}
+
+
+# ─── CELERY ──────────────────────────────────────────────────────────────────
+
+CELERY_BROKER_URL = config("REDIS_URL", default="redis://localhost:6379/0")
+CELERY_RESULT_BACKEND = config("REDIS_URL", default="redis://localhost:6379/0")
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "Africa/Gaborone"
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 300  # 5 minutes hard limit per task
+
+
+# ─── EMAIL ────────────────────────────────────────────────────────────────────
+
+EMAIL_BACKEND = config(
+    "EMAIL_BACKEND",
+    default="django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST = config("EMAIL_HOST", default="")
+EMAIL_PORT = config("EMAIL_PORT", default=587, cast=int)
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", default=True, cast=bool)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default="")
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="BOCRA Platform <noreply@bocra.org.bw>")
+
+FRONTEND_URL = config("FRONTEND_URL", default="http://localhost:3000")
+
+
+# ─── AUTHENTICATION BACKENDS ─────────────────────────────────────────────────
+# Allows login with either email OR username.
+
+AUTHENTICATION_BACKENDS = [
+    "accounts.backends.UsernameOrEmailBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+
+
+# ─── LOGGING ─────────────────────────────────────────────────────────────────
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+    "loggers": {
+        "accounts": {"handlers": ["console"], "level": "DEBUG", "propagate": False},
+    },
 }
 
 
