@@ -104,21 +104,23 @@ The platform is built **API-first**. Django + DRF is the single backend serving 
 ```
 BOCRA-Backend/
 ├── manage.py
+├── requirements.txt
+├── db.sqlite3
 ├── bocra_backend/            # Project configuration
 │   ├── settings.py
 │   ├── urls.py
+│   ├── celery.py
 │   ├── wsgi.py
 │   └── asgi.py
-├── apps/                     # Django apps (to be created)
-│   ├── accounts/             # User management, auth, roles
-│   ├── licensing/            # Licence applications, renewals
-│   ├── complaints/           # Complaints & case management
-│   ├── publications/         # Documents, regulations, reports
-│   ├── tenders/              # Tender listings & management
-│   ├── news/                 # News articles, announcements
-│   ├── analytics/            # QoS data, telecoms stats
-│   ├── notifications/        # Email, SMS, in-app notifications
-│   └── core/                 # Shared utilities, base models
+├── core/                     # Shared base models, utils, managers
+├── accounts/                 # User management, auth, roles, JWT
+├── licensing/                # Licence applications, renewals, certificates
+├── complaints/               # Complaints & case management
+├── publications/             # Documents, regulations, reports
+├── tenders/                  # Tender listings & management
+├── news/                     # News articles, announcements
+├── analytics/                # QoS data, telecoms stats, dashboards
+├── notifications/            # Email, SMS, in-app notifications
 ├── docs/                     # Project documentation
 │   ├── architecture.md
 │   ├── development-plan.md
@@ -128,9 +130,6 @@ BOCRA-Backend/
 │   ├── security.md
 │   ├── deployment.md
 │   └── submission-checklist.md
-├── requirements.txt
-├── .env.example
-├── .gitignore
 └── README.md
 ```
 
@@ -202,9 +201,40 @@ Once the server is running, API documentation is available at:
 
 | URL | Description |
 |---|---|
-| `/api/docs/` | Swagger UI — interactive API explorer |
-| `/api/schema/` | OpenAPI 3.0 schema (JSON/YAML) |
+| `/api/swagger/` | Swagger UI — interactive API explorer with "Try it out" |
+| `/api/redoc/` | ReDoc — clean, readable API reference |
+| `/api/schema/` | Raw OpenAPI 3.0 schema (JSON/YAML download) |
 | `/admin/` | Django Admin panel |
+
+### Authentication
+
+All protected endpoints require a JWT Bearer token in the `Authorization` header:
+
+```
+Authorization: Bearer <access_token>
+```
+
+**Token flow:**
+
+```bash
+# 1. Register
+POST /api/v1/accounts/register/
+
+# 2. Verify email (link sent to inbox)
+GET  /api/v1/accounts/verify-email/?token=<jwt>
+
+# 3. Login — returns access + refresh tokens
+POST /api/v1/accounts/login/
+{ "identifier": "user@example.com", "password": "..." }
+
+# 4. Refresh access token (15-min lifetime)
+POST /api/v1/accounts/token/refresh/
+{ "refresh": "<refresh_token>" }
+
+# 5. Logout — blacklists the refresh token
+POST /api/v1/accounts/logout/
+{ "refresh": "<refresh_token>" }
+```
 
 ### API Conventions
 
@@ -221,17 +251,19 @@ Once the server is running, API documentation is available at:
 
 ```bash
 # Run all tests
-pytest
+python manage.py test
 
-# Run with coverage
-pytest --cov=apps --cov-report=html
+# Run with verbosity
+python manage.py test --verbosity=2
 
 # Run specific app tests
-pytest apps/licensing/tests/
+python manage.py test core accounts licensing
 
-# Lint check
-flake8 .
-black --check .
+# Run single test class
+python manage.py test accounts.tests.LoginViewTests
+
+# With coverage (requires coverage.py)
+coverage run manage.py test && coverage report
 ```
 
 ---
@@ -309,7 +341,7 @@ chore: description            — tooling, deps, config
 | README — setup, installation, how to run | ✅ Done |
 | Walkthrough video (5-10 min) | ⬜ TODO |
 | Technical proposal (max 10 pages) | ⬜ TODO |
-| OpenAPI docs at `/api/docs/` | ⬜ TODO |
+| OpenAPI docs at `/api/swagger/` | ✅ Done |
 
 **Deadline: 27 March 2026 | 17:00hrs CAT**
 

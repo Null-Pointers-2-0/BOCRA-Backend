@@ -12,16 +12,48 @@
 
 ## MVP Scope — What Gets Built
 
-| # | Module | What We Demo | Status Target |
-|---|---|---|---|
-| 1 | Auth System | Register, login, JWT, role-based access — all working E2E | 100% |
-| 2 | Public Website API | Homepage data, publications, news, tenders, search | 100% |
-| 3 | Licensing Portal | Browse types, apply (multi-step), track status, staff review | 100% |
-| 4 | Complaints System | Submit complaint, reference tracking, staff case management | 100% |
-| 5 | Analytics Dashboard | QoS charts, telecoms stats, complaints volume (mock data) | 100% |
-| 6 | Admin Portal | Django Admin + custom views for licence & complaint queues | 100% |
+| # | Module | What We Demo | Status Target | **Actual Status** |
+|---|---|---|---|---|
+| 1 | Auth System | Register, login, JWT, role-based access — all working E2E | 100% | ✅ **Complete** |
+| 2 | Public Website API | Homepage data, publications, news, tenders, search | 100% | ⏳ Pending |
+| 3 | Licensing Portal | Browse types, apply (multi-step), track status, staff review | 100% | ✅ **Complete** |
+| 4 | Complaints System | Submit complaint, reference tracking, staff case management | 100% | ⏳ Pending |
+| 5 | Analytics Dashboard | QoS charts, telecoms stats, complaints volume (mock data) | 100% | ⏳ Pending |
+| 6 | Admin Portal | Django Admin + custom views for licence & complaint queues | 100% | ⚠️ Partial (licensing admin done) |
 
 ## What We Are NOT Building (Post-Hackathon)
+---
+
+## 📊 Build Status (Updated: 21 March 2026)
+
+### ✅ Done
+
+| App | Models | Serializers | Views | URLs | Admin | Tests |
+|---|---|---|---|---|---|---|
+| `core` | ✅ | — | ✅ | ✅ | ✅ | ✅ |
+| `accounts` | ✅ | ✅ | ✅ (11 views) | ✅ | ✅ | ✅ |
+| `licensing` | ✅ | ✅ | ✅ (14 views) | ✅ | ✅ | ✅ |
+
+**API Documentation:**
+- Swagger UI: `/api/swagger/` — all 27 endpoints visible, tagged, and summarised
+- ReDoc: `/api/redoc/` — clean reference docs
+- Schema: `/api/schema/` — raw OpenAPI 3.0 JSON/YAML
+- All views tagged (`tags=`) and have `summary=` set
+
+**Test suite:** 173 tests — all passing
+
+### ⏳ To Build Next
+
+| App | Status | Next Action |
+|---|---|---|
+| `complaints` | 🔴 Stub only | Day 4 — full implementation (same pattern as licensing) |
+| `publications` | 🔴 Stub only | Day 6 — models + CRUD views |
+| `tenders` | 🔴 Stub only | Day 6 — models + CRUD views |
+| `news` | 🔴 Stub only | Day 6 — models + CRUD views |
+| `analytics` | 🔴 Stub only | Day 5 — models + seed data command + chart endpoints |
+| `notifications` | 🔴 Stub only | Day 4 — notification model + task dispatch |
+
+---
 
 - Domain registry (.bw) — too complex for 7 days
 - Spectrum management portal
@@ -36,7 +68,7 @@
 
 ## Day-by-Day Timeline
 
-### Day 1 — Thursday 20 March 2026
+### Day 1 — Thursday 20 March 2026 ✅ DONE
 **Focus: Project Setup + Auth System**
 
 | Task | Priority | Details |
@@ -56,7 +88,7 @@
 
 ---
 
-### Day 2 — Friday 21 March 2026
+### Day 2 — Friday 21 March 2026 ⚠️ PARTIAL
 **Focus: Core Models + APIs (All Apps Scaffolded)**
 
 | Task | Priority | Details |
@@ -81,7 +113,7 @@
 
 ---
 
-### Day 3 — Saturday 22 March 2026
+### Day 3 — Saturday 22 March 2026 ✅ DONE
 **Focus: Licensing Module (Full Feature)**
 
 | Task | Priority | Details |
@@ -103,7 +135,7 @@
 
 ---
 
-### Day 4 — Sunday 23 March 2026
+### Day 4 — Sunday 23 March 2026 ⏳ NEXT
 **Focus: Complaints Module + BOCRA Briefing**
 
 > **Note:** BOCRA Briefing at 0900hrs — attend and take requirements.
@@ -178,7 +210,7 @@
 | Technical proposal | Critical | 10-page document — motivation, design, stack, features, lessons |
 | Walkthrough video | Critical | Screen recording with narration — 5-10 minutes |
 | Deployment check | Critical | Verify live demo URL is working |
-| API docs review | High | Swagger UI at `/api/docs/` accurate and complete |
+| API docs review | High | Swagger UI at `/api/swagger/` accurate and complete |
 | Code cleanup | Medium | Remove debug code, unused imports, commented-out code |
 
 **Deliverable:** Everything tested, documented, and ready for submission.
