@@ -1,4 +1,4 @@
-# BOCRA Digital Platform — Backend
+# BOCRA Backend Digital Platform
 
 > A unified, API-first web platform built to replace BOCRA's fragmented digital infrastructure.
 
