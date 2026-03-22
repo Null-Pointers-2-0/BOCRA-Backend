@@ -1,6 +1,6 @@
 # BOCRA Digital Platform — Backend
 
-> A modern, unified, API-first web platform built to replace BOCRA's fragmented digital infrastructure.
+> A unified, API-first web platform built to replace BOCRA's fragmented digital infrastructure.
 
 **BOCRA Youth Hackathon — Website Development Challenge**
 
@@ -193,7 +193,7 @@ source venv/bin/activate  # Linux/Mac
 pip install -r requirements.txt
 
 # Set up database
-createdb bocra_db  # or use pgAdmin
+python manage.py makemigrations
 python manage.py migrate
 
 # Create superuser
