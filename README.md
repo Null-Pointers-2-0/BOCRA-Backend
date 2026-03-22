@@ -122,9 +122,19 @@ BOCRA-Backend/
 ├── analytics/                # QoS data, telecoms stats, dashboards
 ├── notifications/            # Email, SMS, in-app notifications
 ├── docs/                     # Project documentation
+│   ├── api/                  # API reference (one file per module)
+│   │   ├── design.md
+│   │   ├── core.md
+│   │   ├── accounts.md
+│   │   ├── licensing.md
+│   │   ├── complaints.md
+│   │   ├── publications.md
+│   │   ├── tenders.md
+│   │   ├── analytics.md
+│   │   ├── news.md
+│   │   └── notifications.md
 │   ├── architecture.md
 │   ├── development-plan.md
-│   ├── api-design.md
 │   ├── data-models.md
 │   ├── srs.md
 │   ├── security.md
@@ -301,12 +311,26 @@ Detailed documentation lives in the [`docs/`](docs/) folder:
 |---|---|
 | [Architecture](docs/architecture.md) | System architecture, layers, technology choices |
 | [Development Plan](docs/development-plan.md) | Day-by-day build timeline and task breakdown |
-| [API Design](docs/api-design.md) | API standards, endpoints by module, response formats |
 | [Data Models](docs/data-models.md) | All entity schemas and relationships |
 | [SRS](docs/srs.md) | Full Software Requirements Specification |
 | [Security](docs/security.md) | Security requirements, auth flow, threat mitigations |
 | [Deployment](docs/deployment.md) | Gunicorn + Nginx setup, CI/CD pipeline, AWS deployment |
 | [Submission Checklist](docs/submission-checklist.md) | Hackathon deliverables and status tracking |
+
+### API Reference (`docs/api/`)
+
+| Document | Endpoints | Description |
+|---|---|---|
+| [API Design](docs/api/design.md) | — | Standards, conventions, response format, auth |
+| [Core](docs/api/core.md) | 2 | API root, health check |
+| [Accounts](docs/api/accounts.md) | 13 | Registration, JWT auth, profile, admin users |
+| [Licensing](docs/api/licensing.md) | 18 | Licence types, applications, renewals, certificates |
+| [Complaints](docs/api/complaints.md) | 12 | Submit, track, case management, resolution |
+| [Publications](docs/api/publications.md) | 11 | Documents, reports, publish/archive workflow |
+| [Tenders](docs/api/tenders.md) | 14 | Procurement, documents, addenda, award workflow |
+| [Analytics](docs/api/analytics.md) | 15 | Dashboards, telecoms, QoS, users, licensing, complaints, publications, tenders, news |
+| [News](docs/api/news.md) | 10 | Articles, press releases, publish/archive workflow |
+| [Notifications](docs/api/notifications.md) | 5 | In-app notifications, read/dismiss |
 
 ---
 

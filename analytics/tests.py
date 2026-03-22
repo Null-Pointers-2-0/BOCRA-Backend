@@ -3,17 +3,24 @@ Tests for the analytics app.
 
 Test groups
 ───────────
-NetworkOperatorModelTests   — Operator model str, active filter
-TelecomsStatModelTests      — Stat model str, unique constraint
-QoSRecordModelTests         — QoS meets_benchmark logic
-OperatorListAPITests        — GET /telecoms/operators/
-TelecomsOverviewAPITests    — GET /telecoms/overview/
-QoSListAPITests             — GET /qos/
-QoSByOperatorAPITests       — GET /qos/by-operator/   (staff)
-ComplaintsSummaryAPITests   — GET /complaints/summary/ (staff)
-LicensingSummaryAPITests    — GET /licensing/summary/  (staff)
-PublicDashboardAPITests     — GET /dashboard/public/
-StaffDashboardAPITests      — GET /dashboard/staff/    (staff)
+NetworkOperatorModelTests       — Operator model str, active filter
+TelecomsStatModelTests          — Stat model str, unique constraint
+QoSRecordModelTests             — QoS meets_benchmark logic
+OperatorListAPITests            — GET /telecoms/operators/
+TelecomsOverviewAPITests        — GET /telecoms/overview/
+QoSListAPITests                 — GET /qos/
+QoSByOperatorAPITests           — GET /qos/by-operator/          (staff)
+ComplaintsSummaryAPITests       — GET /complaints/summary/       (staff)
+LicensingSummaryAPITests        — GET /licensing/summary/        (staff)
+PublicDashboardAPITests         — GET /dashboard/public/
+StaffDashboardAPITests          — GET /dashboard/staff/          (staff)
+UsersSummaryAPITests            — GET /users/summary/            (staff)
+ApplicationsTrendAPITests       — GET /applications/trend/       (staff)
+ComplaintsTrendAPITests         — GET /complaints/trend/         (staff)
+PublicationsSummaryAPITests     — GET /publications/summary/     (staff)
+TendersSummaryAPITests          — GET /tenders/summary/          (staff)
+NewsSummaryAPITests             — GET /news/summary/             (staff)
+ContentOverviewAPITests         — GET /content/overview/         (staff)
 """
 
 from datetime import date, timedelta
@@ -384,6 +391,9 @@ class PublicDashboardAPITests(APITestCase):
         self.assertIn("resolved_complaints", data)
         self.assertIn("total_subscribers", data)
         self.assertIn("active_operators", data)
+        self.assertIn("published_publications", data)
+        self.assertIn("open_tenders", data)
+        self.assertIn("published_articles", data)
 
     def test_subscriber_count_correct(self):
         resp = self.client.get(self.url)
@@ -409,10 +419,249 @@ class StaffDashboardAPITests(APITestCase):
         client = auth_client(self.staff)
         resp = client.get(self.url)
         data = resp.data["data"]
+        self.assertIn("users", data)
         self.assertIn("licensing", data)
         self.assertIn("applications", data)
         self.assertIn("complaints", data)
         self.assertIn("telecoms", data)
+        self.assertIn("content", data)
+        self.assertIn("notifications", data)
+
+    def test_citizen_denied(self):
+        citizen = create_user()
+        client = auth_client(citizen)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_unauthenticated_denied(self):
+        resp = self.client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  NEW ANALYTICS ENDPOINT TESTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ─── USERS SUMMARY ────────────────────────────────────────────────────────────
+
+class UsersSummaryAPITests(APITestCase):
+
+    def setUp(self):
+        self.url = reverse("analytics:users-summary")
+        self.staff = create_staff()
+        create_user(email="citizen1@test.bw", username="citizen1", role=UserRole.REGISTERED)
+        create_user(email="citizen2@test.bw", username="citizen2", role=UserRole.CITIZEN)
+
+    def test_staff_access(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_returns_expected_keys(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        data = resp.data["data"]
+        self.assertIn("total", data)
+        self.assertIn("by_role", data)
+        self.assertIn("email_verified", data)
+        self.assertIn("verification_rate_percent", data)
+        self.assertIn("locked_accounts", data)
+        self.assertIn("new_last_7_days", data)
+        self.assertIn("new_last_30_days", data)
+        self.assertIn("registration_trend", data)
+
+    def test_total_count(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        self.assertEqual(resp.data["data"]["total"], 3)
+
+    def test_citizen_denied(self):
+        citizen = create_user(email="noaccess@test.bw", username="noaccess")
+        client = auth_client(citizen)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+
+# ─── APPLICATIONS TREND ───────────────────────────────────────────────────────
+
+class ApplicationsTrendAPITests(APITestCase):
+
+    def setUp(self):
+        self.url = reverse("analytics:applications-trend")
+        self.staff = create_staff()
+
+    def test_staff_access(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_returns_expected_keys(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        data = resp.data["data"]
+        self.assertIn("total", data)
+        self.assertIn("by_licence_type", data)
+        self.assertIn("approved", data)
+        self.assertIn("rejected", data)
+        self.assertIn("approval_rate_percent", data)
+        self.assertIn("avg_processing_days", data)
+        self.assertIn("volume_trend", data)
+
+    def test_citizen_denied(self):
+        citizen = create_user()
+        client = auth_client(citizen)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+
+# ─── COMPLAINTS TREND ─────────────────────────────────────────────────────────
+
+class ComplaintsTrendAPITests(APITestCase):
+
+    def setUp(self):
+        self.url = reverse("analytics:complaints-trend")
+        self.staff = create_staff()
+
+    def test_staff_access(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_returns_expected_keys(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        data = resp.data["data"]
+        self.assertIn("volume_trend", data)
+        self.assertIn("resolution_trend", data)
+        self.assertIn("top_targeted_operators", data)
+        self.assertIn("staff_workload", data)
+
+    def test_citizen_denied(self):
+        citizen = create_user()
+        client = auth_client(citizen)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+
+# ─── PUBLICATIONS SUMMARY ─────────────────────────────────────────────────────
+
+class PublicationsSummaryAPITests(APITestCase):
+
+    def setUp(self):
+        self.url = reverse("analytics:publications-summary")
+        self.staff = create_staff()
+
+    def test_staff_access(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_returns_expected_keys(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        data = resp.data["data"]
+        self.assertIn("total", data)
+        self.assertIn("by_status", data)
+        self.assertIn("by_category", data)
+        self.assertIn("total_downloads", data)
+        self.assertIn("top_downloaded", data)
+        self.assertIn("publishing_trend", data)
+
+    def test_citizen_denied(self):
+        citizen = create_user()
+        client = auth_client(citizen)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+
+# ─── TENDERS SUMMARY ──────────────────────────────────────────────────────────
+
+class TendersSummaryAPITests(APITestCase):
+
+    def setUp(self):
+        self.url = reverse("analytics:tenders-summary")
+        self.staff = create_staff()
+
+    def test_staff_access(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_returns_expected_keys(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        data = resp.data["data"]
+        self.assertIn("total", data)
+        self.assertIn("by_status", data)
+        self.assertIn("by_category", data)
+        self.assertIn("awards", data)
+        self.assertIn("volume_trend", data)
+        awards = data["awards"]
+        self.assertIn("total_awarded", awards)
+        self.assertIn("total_amount", awards)
+        self.assertIn("avg_amount", awards)
+
+    def test_citizen_denied(self):
+        citizen = create_user()
+        client = auth_client(citizen)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+
+# ─── NEWS SUMMARY ─────────────────────────────────────────────────────────────
+
+class NewsSummaryAPITests(APITestCase):
+
+    def setUp(self):
+        self.url = reverse("analytics:news-summary")
+        self.staff = create_staff()
+
+    def test_staff_access(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_returns_expected_keys(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        data = resp.data["data"]
+        self.assertIn("total", data)
+        self.assertIn("by_status", data)
+        self.assertIn("by_category", data)
+        self.assertIn("total_views", data)
+        self.assertIn("top_viewed", data)
+        self.assertIn("publishing_trend", data)
+
+    def test_citizen_denied(self):
+        citizen = create_user()
+        client = auth_client(citizen)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+
+# ─── CONTENT OVERVIEW ─────────────────────────────────────────────────────────
+
+class ContentOverviewAPITests(APITestCase):
+
+    def setUp(self):
+        self.url = reverse("analytics:content-overview")
+        self.staff = create_staff()
+
+    def test_staff_access(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+
+    def test_returns_all_content_sections(self):
+        client = auth_client(self.staff)
+        resp = client.get(self.url)
+        data = resp.data["data"]
+        self.assertIn("publications", data)
+        self.assertIn("tenders", data)
+        self.assertIn("news", data)
+        for section in ["publications", "tenders", "news"]:
+            self.assertIn("total", data[section])
 
     def test_citizen_denied(self):
         citizen = create_user()
