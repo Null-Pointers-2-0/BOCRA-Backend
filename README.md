@@ -10,8 +10,8 @@
 | Submission Deadline | **27 March 2026 \| 17:00hrs CAT** |
 | Backend Stack | Django 5.x + Django REST Framework (DRF) |
 | Frontend Stack | React / Next.js (separate repo) |
-| Database | PostgreSQL 16 |
-| Deployment | AWS EC2 + Gunicorn + Nginx |
+| Database | SQLite |
+| Deployment | AWS Lightsail + Gunicorn + Nginx |
 
 ---
 
