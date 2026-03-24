@@ -32,8 +32,9 @@ from rest_framework.views import APIView
 
 from drf_spectacular.utils import extend_schema, OpenApiTypes
 
-from accounts.permissions import IsStaff
+from apps.accounts.permissions import IsStaff
 from core.utils import api_error, api_success
+from apps.accounts.models import User
 from .models import Article, ArticleStatus, NewsCategory
 from .serializers import (
     PublicArticleDetailSerializer,

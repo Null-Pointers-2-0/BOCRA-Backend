@@ -419,7 +419,7 @@ class AssignSerializer(serializers.Serializer):
     assigned_to = serializers.UUIDField(help_text="UUID of the staff user to assign.")
 
     def validate_assigned_to(self, value):
-        from accounts.models import User, UserRole
+        from apps.accounts.models import User, UserRole
         try:
             user = User.objects.get(id=value, is_deleted=False)
         except User.DoesNotExist:

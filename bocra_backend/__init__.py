@@ -1,4 +1,5 @@
 # Load Celery app so @shared_task decorators work when Django starts.
-from .celery import app as celery_app
+# Temporarily disabled for testing
+# from .celery import app as celery_app
 
-__all__ = ["celery_app"]
+# __all__ = ["celery_app"]

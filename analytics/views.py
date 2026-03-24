@@ -46,7 +46,7 @@ from drf_spectacular.utils import (
 )
 from rest_framework import serializers as drf_serializers
 
-from accounts.permissions import IsStaff
+from apps.accounts.permissions import IsStaff
 from core.utils import api_error, api_success
 from .models import NetworkOperator, QoSRecord, TelecomsStat
 from .serializers import (

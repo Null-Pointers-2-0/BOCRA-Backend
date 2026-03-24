@@ -39,8 +39,8 @@ from drf_spectacular.utils import (
     extend_schema,
 )
 
-from accounts.models import User, UserRole
-from accounts.permissions import IsStaff
+from apps.accounts.models import User, UserRole
+from apps.accounts.permissions import IsStaff
 from core.utils import api_error, api_success
 from .models import (
     CaseNote,

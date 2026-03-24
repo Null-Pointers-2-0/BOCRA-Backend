@@ -16,7 +16,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from core.models import AuditableModel, BaseModel
+from apps.core.models import AuditableModel, BaseModel
 
 
 # ─── ENUMS ────────────────────────────────────────────────────────────────────

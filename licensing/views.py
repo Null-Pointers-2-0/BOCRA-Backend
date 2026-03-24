@@ -46,8 +46,8 @@ from drf_spectacular.utils import (
     extend_schema_view,
 )
 
-from accounts.permissions import IsAdmin, IsOwnerOrStaff, IsStaff
-from core.utils import api_error, api_success
+from apps.accounts.permissions import IsAdmin, IsOwnerOrStaff, IsStaff
+from apps.core.utils import api_error, api_success
 from .models import (
     Application,
     ApplicationDocument,
@@ -281,14 +281,14 @@ class ApplicationDetailView(generics.RetrieveAPIView):
 
     def get_serializer_class(self):
         user = self.request.user
-        from accounts.models import UserRole
+        from apps.accounts.models import UserRole
         if hasattr(user, 'role') and user.role in (UserRole.STAFF, UserRole.ADMIN, UserRole.SUPERADMIN):
             return StaffApplicationDetailSerializer
         return ApplicationDetailSerializer
 
     def get_object(self):
         user = self.request.user
-        from accounts.models import UserRole
+        from apps.accounts.models import UserRole
         qs = Application.objects.filter(is_deleted=False).select_related(
             "licence_type", "reviewed_by", "applicant"
         ).prefetch_related("documents", "status_logs__changed_by", "licence")
@@ -358,7 +358,7 @@ class UploadDocumentView(APIView):
     serializer_class = DocumentUploadSerializer
 
     def get_application(self, pk, user):
-        from accounts.models import UserRole
+        from apps.accounts.models import UserRole
         qs = Application.objects.filter(is_deleted=False)
         if user.role in (UserRole.STAFF, UserRole.ADMIN, UserRole.SUPERADMIN):
             return get_object_or_404(qs, pk=pk)
@@ -519,7 +519,7 @@ def _create_licence_from_application(application: Application, approved_by) -> L
 
     # Upgrade applicant role to LICENSEE
     applicant = application.applicant
-    from accounts.models import UserRole
+    from apps.accounts.models import UserRole
     if applicant.role not in (UserRole.STAFF, UserRole.ADMIN, UserRole.SUPERADMIN):
         applicant.role = UserRole.LICENSEE
         applicant.save(update_fields=["role"])
@@ -637,7 +637,7 @@ class LicenceDetailView(generics.RetrieveAPIView):
 
     def get_object(self):
         user = self.request.user
-        from accounts.models import UserRole
+        from apps.accounts.models import UserRole
         qs = Licence.objects.filter(is_deleted=False).select_related(
             "licence_type", "holder", "application"
         )
@@ -754,7 +754,7 @@ class LicenceCertificateView(APIView):
 
     def get(self, request, pk):
         user = request.user
-        from accounts.models import UserRole
+        from apps.accounts.models import UserRole
         qs = Licence.objects.filter(is_deleted=False)
         if user.role in (UserRole.STAFF, UserRole.ADMIN, UserRole.SUPERADMIN):
             licence = get_object_or_404(qs, pk=pk)

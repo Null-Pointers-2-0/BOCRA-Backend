@@ -37,8 +37,8 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
-    "core",
-    "accounts",
+    "apps.core",
+    "apps.accounts",
     "licensing",
     "complaints",
     "publications",
@@ -96,7 +96,7 @@ DATABASES = {
 
 # ─── AUTH ────────────────────────────────────────────────────────────────────
 
-AUTH_USER_MODEL = "accounts.User"
+AUTH_USER_MODEL = "apps.accounts.User"
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

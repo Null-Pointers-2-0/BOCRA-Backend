@@ -3,6 +3,8 @@ Utility functions for the BOCRA Digital Platform.
 """
 import uuid
 import re
+import string
+import random
 from datetime import datetime, timedelta
 from django.utils import timezone
 from django.core.exceptions import ValidationError
@@ -24,8 +26,75 @@ def generate_reference_number(prefix, length=8):
         'LIC-12345678'
     """
     # Generate random number
-    random_part = ''.join([str(uuid.uuid4().int)[-length:]])
-    return f"{prefix}-{random_part}"
+    digits = "".join(random.choices(string.digits, k=length))
+    return f"{prefix}-{digits}"
+
+
+# ─── BOTSWANA PHONE NUMBERS ────────────────────────────────────────────────────
+
+_BW_PHONE_RE = re.compile(r"^(\+267|267)?[0-9]{8}$")
+
+
+def validate_botswana_phone_number(phone: str) -> bool:
+    """
+    Returns True if the phone number is a valid Botswana format.
+    Accepts: +267XXXXXXXX, 267XXXXXXXX, XXXXXXXX (8 digits).
+    """
+    if not phone:
+        return False
+    cleaned = re.sub(r"[\s\-()]", "", phone)
+    return bool(_BW_PHONE_RE.match(cleaned))
+
+
+def format_botswana_phone_number(phone: str) -> str:
+    """
+    Normalise a Botswana phone number to +267XXXXXXXX.
+    Raises ValueError if the number is not valid.
+    """
+    cleaned = re.sub(r"[\s\-()]", "", phone)
+    if cleaned.startswith("+267"):
+        digits = cleaned[4:]
+    elif cleaned.startswith("267"):
+        digits = cleaned[3:]
+    else:
+        digits = cleaned
+
+    if len(digits) != 8 or not digits.isdigit():
+        raise ValueError("Invalid Botswana phone number")
+
+    return f"+267{digits}"
+
+
+# ─── API RESPONSE HELPERS ─────────────────────────────────────────────────────
+
+def api_success(data=None, message: str = "Success", status: int = 200) -> dict:
+    """
+    Build a standardised success response body as per the BOCRA API design spec.
+
+    Usage in a view:
+        return Response(api_success(serializer.data, "User retrieved"), status=200)
+    """
+    return {
+        "success": True,
+        "message": message,
+        "data": data,
+        "errors": None,
+    }
+
+
+def api_error(message: str = "An error occurred", errors=None, status: int = 400) -> dict:
+    """
+    Build a standardised error response body as per the BOCRA API design spec.
+
+    Usage in a view:
+        return Response(api_error("Validation failed", serializer.errors), status=400)
+    """
+    return {
+        "success": False,
+        "message": message,
+        "data": None,
+        "errors": errors,
+    }
 
 
 def validate_botswana_phone_number(phone_number):

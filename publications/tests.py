@@ -26,7 +26,7 @@ from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from accounts.models import UserRole
+from apps.accounts.models import UserRole
 from publications.models import (
     Publication,
     PublicationAttachment,

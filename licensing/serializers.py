@@ -26,7 +26,7 @@ from django.conf import settings
 from django.utils import timezone
 from rest_framework import serializers
 
-from core.utils import validate_botswana_phone_number, format_botswana_phone_number
+from apps.core.utils import validate_botswana_phone_number, format_botswana_phone_number
 from .models import (
     Application,
     ApplicationDocument,
