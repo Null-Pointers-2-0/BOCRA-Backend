@@ -3,8 +3,10 @@ Licensing app serializers.
 
 Public
 ──────
-LicenceTypeListSerializer   — lightweight, for list view
-LicenceTypeDetailSerializer — full detail including requirements
+LicenceSectorListSerializer   — sector list with type count
+LicenceSectorDetailSerializer — sector detail with nested licence types
+LicenceTypeListSerializer     — lightweight, for list view
+LicenceTypeDetailSerializer   — full detail including requirements
 
 Applicant
 ─────────
@@ -19,6 +21,9 @@ Staff
 ─────
 StaffApplicationListSerializer  — all apps queue with extra fields
 StatusUpdateSerializer          — drive the state machine
+StaffSectorCreateSerializer     — create / update a sector
+StaffLicenceTypeCreateSerializer — create a licence type
+StaffLicenceTypeUpdateSerializer — update a licence type
 """
 from datetime import date
 
@@ -33,15 +38,65 @@ from .models import (
     ApplicationStatus,
     ApplicationStatusLog,
     Licence,
+    LicenceSector,
     LicenceStatus,
     LicenceType,
 )
+
+
+# ─── LICENCE SECTOR ───────────────────────────────────────────────────────────
+
+class LicenceSectorListSerializer(serializers.ModelSerializer):
+    """Compact representation for list views."""
+    type_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LicenceSector
+        fields = [
+            "id",
+            "name",
+            "code",
+            "description",
+            "icon",
+            "sort_order",
+            "is_active",
+            "type_count",
+        ]
+
+    def get_type_count(self, obj):
+        return obj.licence_types.filter(is_active=True, is_deleted=False).count()
+
+
+class LicenceSectorDetailSerializer(serializers.ModelSerializer):
+    """Full detail with nested licence types."""
+    licence_types = serializers.SerializerMethodField()
+
+    class Meta:
+        model = LicenceSector
+        fields = [
+            "id",
+            "name",
+            "code",
+            "description",
+            "icon",
+            "sort_order",
+            "is_active",
+            "licence_types",
+            "created_at",
+            "updated_at",
+        ]
+
+    def get_licence_types(self, obj):
+        qs = obj.licence_types.filter(is_active=True, is_deleted=False).order_by("sort_order", "name")
+        return LicenceTypeListSerializer(qs, many=True).data
 
 
 # ─── LICENCE TYPE ─────────────────────────────────────────────────────────────
 
 class LicenceTypeListSerializer(serializers.ModelSerializer):
     """Compact representation for list views."""
+    sector_name = serializers.CharField(source="sector.name", read_only=True, default=None)
+    sector_code = serializers.CharField(source="sector.code", read_only=True, default=None)
 
     class Meta:
         model = LicenceType
@@ -49,16 +104,25 @@ class LicenceTypeListSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "code",
+            "sector",
+            "sector_name",
+            "sector_code",
             "description",
             "fee_amount",
+            "annual_fee",
+            "renewal_fee",
             "fee_currency",
             "validity_period_months",
+            "is_domain_applicable",
+            "sort_order",
             "is_active",
         ]
 
 
 class LicenceTypeDetailSerializer(serializers.ModelSerializer):
-    """Full detail including requirements text."""
+    """Full detail including requirements, eligibility, and required docs."""
+    sector_name = serializers.CharField(source="sector.name", read_only=True, default=None)
+    sector_code = serializers.CharField(source="sector.code", read_only=True, default=None)
 
     class Meta:
         model = LicenceType
@@ -66,11 +130,20 @@ class LicenceTypeDetailSerializer(serializers.ModelSerializer):
             "id",
             "name",
             "code",
+            "sector",
+            "sector_name",
+            "sector_code",
             "description",
             "requirements",
+            "eligibility_criteria",
+            "required_documents",
             "fee_amount",
+            "annual_fee",
+            "renewal_fee",
             "fee_currency",
             "validity_period_months",
+            "is_domain_applicable",
+            "sort_order",
             "is_active",
             "created_at",
             "updated_at",
@@ -478,3 +551,108 @@ class LicenceVerifySerializer(serializers.ModelSerializer):
             "status_display",
             "is_expired",
         ]
+
+
+# ─── STAFF SECTOR CRUD ───────────────────────────────────────────────────────
+
+class StaffSectorCreateSerializer(serializers.ModelSerializer):
+    """Create or update a licence sector."""
+
+    class Meta:
+        model = LicenceSector
+        fields = [
+            "id",
+            "name",
+            "code",
+            "description",
+            "icon",
+            "sort_order",
+            "is_active",
+        ]
+        read_only_fields = ["id"]
+
+    def validate_code(self, value):
+        value = value.upper().strip()
+        qs = LicenceSector.objects.filter(code=value, is_deleted=False)
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("A sector with this code already exists.")
+        return value
+
+
+# ─── STAFF LICENCE TYPE CRUD ─────────────────────────────────────────────────
+
+class StaffLicenceTypeCreateSerializer(serializers.ModelSerializer):
+    """Create a new licence type."""
+
+    class Meta:
+        model = LicenceType
+        fields = [
+            "id",
+            "name",
+            "code",
+            "sector",
+            "description",
+            "requirements",
+            "eligibility_criteria",
+            "required_documents",
+            "fee_amount",
+            "annual_fee",
+            "renewal_fee",
+            "fee_currency",
+            "validity_period_months",
+            "is_domain_applicable",
+            "sort_order",
+            "is_active",
+        ]
+        read_only_fields = ["id"]
+
+    def validate_code(self, value):
+        value = value.upper().strip()
+        if LicenceType.objects.filter(code=value, is_deleted=False).exists():
+            raise serializers.ValidationError("A licence type with this code already exists.")
+        return value
+
+    def validate_sector(self, value):
+        if value and value.is_deleted:
+            raise serializers.ValidationError("This sector has been deleted.")
+        return value
+
+
+class StaffLicenceTypeUpdateSerializer(serializers.ModelSerializer):
+    """Update an existing licence type."""
+
+    class Meta:
+        model = LicenceType
+        fields = [
+            "id",
+            "name",
+            "code",
+            "sector",
+            "description",
+            "requirements",
+            "eligibility_criteria",
+            "required_documents",
+            "fee_amount",
+            "annual_fee",
+            "renewal_fee",
+            "fee_currency",
+            "validity_period_months",
+            "is_domain_applicable",
+            "sort_order",
+            "is_active",
+        ]
+        read_only_fields = ["id"]
+
+    def validate_code(self, value):
+        value = value.upper().strip()
+        qs = LicenceType.objects.filter(code=value, is_deleted=False).exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError("A licence type with this code already exists.")
+        return value
+
+    def validate_sector(self, value):
+        if value and value.is_deleted:
+            raise serializers.ValidationError("This sector has been deleted.")
+        return value

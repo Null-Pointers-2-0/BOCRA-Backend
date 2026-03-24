@@ -3,6 +3,7 @@ Licensing app models.
 
 Entities
 ────────
+LicenceSector        — Regulatory sector grouping (ICT, Postal, Broadcasting, etc.)
 LicenceType          — The catalogue of licence types BOCRA offers.
 Application          — A submitted (or drafted) licence application.
 ApplicationDocument  — Files attached to an application.
@@ -38,34 +39,110 @@ class LicenceStatus(models.TextChoices):
     REVOKED   = "REVOKED",   "Revoked"
 
 
+# ─── LICENCE SECTOR ───────────────────────────────────────────────────────────
+
+class LicenceSector(AuditableModel):
+    """
+    Regulatory sector grouping for licence types.
+    Examples: ICT, Postal, Broadcasting, General.
+    """
+
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=20, unique=True, db_index=True)
+    description = models.TextField(
+        help_text="Public-facing description of this regulatory sector.",
+    )
+    icon = models.CharField(
+        max_length=50,
+        blank=True,
+        default="",
+        help_text="Optional icon identifier for the frontend.",
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        help_text="Display ordering (lower = first).",
+    )
+    is_active = models.BooleanField(
+        default=True,
+        help_text="Only active sectors appear on the public portal.",
+        db_index=True,
+    )
+
+    class Meta:
+        ordering = ["sort_order", "name"]
+        verbose_name = "Licence Sector"
+        verbose_name_plural = "Licence Sectors"
+
+    def __str__(self):
+        return f"{self.name} ({self.code})"
+
+
 # ─── LICENCE TYPE ─────────────────────────────────────────────────────────────
 
 class LicenceType(AuditableModel):
     """
     The public catalogue of licence types BOCRA issues.
 
-    Examples: Telecommunications Network Operator (TNO), ISP,
-    Broadcast Licence, Postal Operator, etc.
+    Examples: Services & Applications Provider (SAP), Network Facilities
+    Provider (NFP), Radio Dealer's Licence, VANS, etc.
     """
 
     name = models.CharField(max_length=200)
     code = models.CharField(max_length=20, unique=True, db_index=True)
+    sector = models.ForeignKey(
+        LicenceSector,
+        on_delete=models.PROTECT,
+        related_name="licence_types",
+        null=True,
+        blank=True,
+        help_text="Regulatory sector this licence type belongs to.",
+    )
     description = models.TextField(help_text="Shown to applicants on the public portal.")
     requirements = models.TextField(
         help_text="Documents and information the applicant must provide.",
         blank=True,
         default="",
     )
+    eligibility_criteria = models.TextField(
+        help_text="Who is eligible to apply for this licence type.",
+        blank=True,
+        default="",
+    )
+    required_documents = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Structured list of required docs, e.g. [{"name": "Certificate of Incorporation", "required": true}].',
+    )
     fee_amount = models.DecimalField(
         max_digits=12,
         decimal_places=2,
         default=0,
-        help_text="Application fee in BWP (display only for MVP).",
+        help_text="Initial application / licensing fee in BWP.",
+    )
+    annual_fee = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Recurring annual fee in BWP.",
+    )
+    renewal_fee = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        help_text="Renewal fee in BWP (may differ from initial fee).",
     )
     fee_currency = models.CharField(max_length=3, default="BWP")
     validity_period_months = models.PositiveIntegerField(
         default=12,
         help_text="How long the issued licence is valid for (months).",
+    )
+    is_domain_applicable = models.BooleanField(
+        default=False,
+        help_text="If true, this licence is relevant when applying for .bw domains.",
+    )
+    sort_order = models.PositiveIntegerField(
+        default=0,
+        help_text="Display ordering within its sector (lower = first).",
     )
     is_active = models.BooleanField(
         default=True,
@@ -74,7 +151,7 @@ class LicenceType(AuditableModel):
     )
 
     class Meta:
-        ordering = ["name"]
+        ordering = ["sort_order", "name"]
         verbose_name = "Licence Type"
         verbose_name_plural = "Licence Types"
 

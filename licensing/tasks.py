@@ -1,15 +1,14 @@
 """
-Celery tasks for the licensing app.
+Email helpers for the licensing app.
 
-Tasks
-─────
+Functions
+─────────
 send_application_submitted_email  — notify applicant on submission
 send_application_status_email     — notify applicant on any status change
 """
 
 import logging
 
-from celery import shared_task
 from django.conf import settings
 from django.core.mail import send_mail
 
@@ -20,8 +19,7 @@ def _frontend_url() -> str:
     return getattr(settings, "FRONTEND_URL", "http://localhost:3000")
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_application_submitted_email(self, application_id: str):
+def send_application_submitted_email(application_id: str):
     """
     Send a confirmation email to the applicant after they submit an application.
     """
@@ -69,11 +67,10 @@ def send_application_submitted_email(self, application_id: str):
             application.reference_number,
             exc,
         )
-        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        pass  # Non-critical — skip retry
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_application_status_email(self, application_id: str, new_status: str):
+def send_application_status_email(application_id: str, new_status: str):
     """
     Notify the applicant whenever their application status changes.
     Includes tailored messaging per status.
@@ -174,4 +171,4 @@ def send_application_status_email(self, application_id: str, new_status: str):
             application.reference_number,
             exc,
         )
-        raise self.retry(exc=exc, countdown=60 * (2 ** self.request.retries))
+        pass  # Non-critical — skip retry

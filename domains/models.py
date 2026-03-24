@@ -146,6 +146,14 @@ class DomainApplication(BaseModel):
         on_delete=models.PROTECT,
         related_name="applications",
     )
+    licence_type = models.ForeignKey(
+        "licensing.LicenceType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="domain_applications",
+        help_text="The licence type relevant to this domain registration (auto-selected).",
+    )
 
     # ── status ───────────────────────────────────────────────────────────────
     status = models.CharField(

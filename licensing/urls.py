@@ -11,6 +11,8 @@ from .views import (
     LicenceCertificateView,
     LicenceDetailView,
     LicenceRenewView,
+    LicenceSectorDetailView,
+    LicenceSectorListView,
     LicenceTypeDetailView,
     LicenceTypeListView,
     LicenceVerifyView,
@@ -18,6 +20,16 @@ from .views import (
     MyLicencesView,
     StaffApplicationDetailView,
     StaffApplicationListView,
+    StaffLicenceTypeCreateView,
+    StaffLicenceTypeDeleteView,
+    StaffLicenceTypeDetailView,
+    StaffLicenceTypeListView,
+    StaffLicenceTypeUpdateView,
+    StaffLicenceListView,
+    StaffSectorCreateView,
+    StaffSectorDeleteView,
+    StaffSectorListView,
+    StaffSectorUpdateView,
     UpdateApplicationStatusView,
     UploadDocumentView,
 )
@@ -26,9 +38,11 @@ app_name = "licensing"
 
 urlpatterns = [
     # ── Public ────────────────────────────────────────────────────────────────
-    path("types/",           LicenceTypeListView.as_view(),   name="type-list"),
-    path("types/<uuid:pk>/", LicenceTypeDetailView.as_view(), name="type-detail"),
-    path("verify/",          LicenceVerifyView.as_view(),     name="verify"),
+    path("sectors/",           LicenceSectorListView.as_view(),   name="sector-list"),
+    path("sectors/<uuid:pk>/", LicenceSectorDetailView.as_view(), name="sector-detail"),
+    path("types/",             LicenceTypeListView.as_view(),     name="type-list"),
+    path("types/<uuid:pk>/",   LicenceTypeDetailView.as_view(),   name="type-detail"),
+    path("verify/",            LicenceVerifyView.as_view(),       name="verify"),
 
     # ── Applicant — Applications ───────────────────────────────────────────────
     path("applications/",                          MyApplicationsView.as_view(),         name="my-applications"),
@@ -43,7 +57,23 @@ urlpatterns = [
     path("licences/<uuid:pk>/renew/",        LicenceRenewView.as_view(),       name="licence-renew"),
     path("licences/<uuid:pk>/certificate/",  LicenceCertificateView.as_view(), name="licence-certificate"),
 
-    # ── Staff ─────────────────────────────────────────────────────────────────
+    # ── Staff — Sectors ───────────────────────────────────────────────────────
+    path("staff/sectors/",              StaffSectorListView.as_view(),   name="staff-sector-list"),
+    path("staff/sectors/create/",       StaffSectorCreateView.as_view(), name="staff-sector-create"),
+    path("staff/sectors/<uuid:pk>/",    StaffSectorUpdateView.as_view(), name="staff-sector-update"),
+    path("staff/sectors/<uuid:pk>/delete/", StaffSectorDeleteView.as_view(), name="staff-sector-delete"),
+
+    # ── Staff — Licence Types ─────────────────────────────────────────────────
+    path("staff/types/",                StaffLicenceTypeListView.as_view(),   name="staff-type-list"),
+    path("staff/types/create/",         StaffLicenceTypeCreateView.as_view(), name="staff-type-create"),
+    path("staff/types/<uuid:pk>/",      StaffLicenceTypeDetailView.as_view(), name="staff-type-detail"),
+    path("staff/types/<uuid:pk>/update/", StaffLicenceTypeUpdateView.as_view(), name="staff-type-update"),
+    path("staff/types/<uuid:pk>/delete/", StaffLicenceTypeDeleteView.as_view(), name="staff-type-delete"),
+
+    # ── Staff — Licences ──────────────────────────────────────────────────────
+    path("staff/licences/",          StaffLicenceListView.as_view(),       name="staff-licences"),
+
+    # ── Staff — Applications ──────────────────────────────────────────────────
     path("staff/applications/",           StaffApplicationListView.as_view(),   name="staff-applications"),
     path("staff/applications/<uuid:pk>/", StaffApplicationDetailView.as_view(), name="staff-application-detail"),
 ]

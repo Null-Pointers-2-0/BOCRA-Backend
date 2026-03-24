@@ -3,7 +3,7 @@
 > Base URL: `/api/v1/licensing/`  
 > Swagger tags: **Licensing — Public** · **Licensing — Applications** · **Licensing — Licences** · **Licensing — Staff**
 
-Manages the full licence lifecycle: type catalogue, application submission, document upload, status review workflow, issued licences, renewal, and PDF certificate download.
+Manages the full licence lifecycle: sector catalogue, type catalogue, application submission, document upload, status review workflow, issued licences, renewal, and PDF certificate download.
 
 ---
 
@@ -12,10 +12,14 @@ Manages the full licence lifecycle: type catalogue, application submission, docu
 - [Endpoints Summary](#endpoints-summary)
 - [Application Status Values](#application-status-values)
 - [Licence Status Values](#licence-status-values)
+- [Public — Sectors](#public--sectors)
 - [Public — Licence Types & Verification](#public--licence-types--verification)
 - [Applications — Applicant](#applications--applicant)
 - [Licences — Applicant](#licences--applicant)
 - [Staff — Review Queue](#staff--review-queue)
+- [Staff — Licences](#staff--licences)
+- [Staff — Sectors CRUD](#staff--sectors-crud)
+- [Staff — Licence Types CRUD](#staff--licence-types-crud)
 
 ---
 
@@ -25,6 +29,8 @@ Manages the full licence lifecycle: type catalogue, application submission, docu
 
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
+| `GET` | `/sectors/` | List all active licence sectors | Public |
+| `GET` | `/sectors/{id}/` | Sector detail with nested licence types | Public |
 | `GET` | `/types/` | List all active licence types | Public |
 | `GET` | `/types/{id}/` | Licence type detail with full requirements | Public |
 | `GET` | `/verify/?licence_no=` | Verify a licence by number or company name | Public |
@@ -48,13 +54,38 @@ Manages the full licence lifecycle: type catalogue, application submission, docu
 | `POST` | `/licences/{id}/renew/` | Submit a renewal application | Owner |
 | `GET` | `/licences/{id}/certificate/` | Download PDF certificate | Owner / Staff |
 
-### Staff
+### Staff — Applications
 
 | Method | Endpoint | Description | Auth |
 |---|---|---|---|
 | `PATCH` | `/applications/{id}/status/` | Update application status (state machine) | Staff |
 | `GET` | `/staff/applications/` | All applications across all users | Staff |
 | `GET` | `/staff/applications/{id}/` | Application detail with internal staff notes | Staff |
+
+### Staff — Licences
+
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `GET` | `/staff/licences/` | All issued licences across all holders | Staff |
+
+### Staff — Sectors CRUD
+
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `GET` | `/staff/sectors/` | List all sectors (including inactive) | Staff |
+| `POST` | `/staff/sectors/create/` | Create a new sector | Staff |
+| `PATCH` | `/staff/sectors/{id}/` | Update a sector | Staff |
+| `DELETE` | `/staff/sectors/{id}/delete/` | Soft-delete a sector | Staff |
+
+### Staff — Licence Types CRUD
+
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| `GET` | `/staff/types/` | List all licence types (including inactive) | Staff |
+| `POST` | `/staff/types/create/` | Create a new licence type | Staff |
+| `GET` | `/staff/types/{id}/` | Licence type detail (staff) | Staff |
+| `PATCH` | `/staff/types/{id}/update/` | Update a licence type | Staff |
+| `DELETE` | `/staff/types/{id}/delete/` | Soft-delete a licence type | Staff |
 
 ---
 
@@ -68,7 +99,7 @@ Applications move through a defined state machine. Not all transitions are valid
 | `SUBMITTED` | Submitted | Submitted; awaiting staff review |
 | `UNDER_REVIEW` | Under Review | Assigned to a staff reviewer |
 | `INFO_REQUESTED` | Information Requested | Staff requested more info from applicant |
-| `APPROVED` | Approved | Application approved; licence being prepared |
+| `APPROVED` | Approved | Application approved; licence auto-issued |
 | `REJECTED` | Rejected | Application rejected |
 | `CANCELLED` | Cancelled | Cancelled by applicant |
 | `LICENCE_ISSUED` | Licence Issued | Licence record created and active |
@@ -82,6 +113,8 @@ Applications move through a defined state machine. Not all transitions are valid
 | `UNDER_REVIEW` | `INFO_REQUESTED`, `APPROVED`, `REJECTED` |
 | `INFO_REQUESTED` | `UNDER_REVIEW`, `CANCELLED` |
 | `APPROVED` | `LICENCE_ISSUED` |
+
+> **Note:** When an application is approved via `PATCH /applications/{id}/status/`, a `Licence` record is **automatically created** with an `ACTIVE` status and a PDF certificate is generated. The applicant's role is upgraded to `LICENSEE`.
 
 ---
 
@@ -97,6 +130,95 @@ Applications move through a defined state machine. Not all transitions are valid
 
 ---
 
+## Public — Sectors
+
+### GET `/sectors/`
+
+List all active regulatory sectors.
+
+**Auth**: None required
+
+**Query parameters**
+
+| Param | Description |
+|---|---|
+| `search` | Search by name, code, or description |
+| `ordering` | Sort by `name`, `sort_order` |
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Licence sectors retrieved successfully.",
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Telecommunications",
+      "code": "TELECOM",
+      "description": "Telecommunications licences for network operators and service providers.",
+      "icon": "radio-tower",
+      "sort_order": 1,
+      "is_active": true,
+      "type_count": 4
+    }
+  ],
+  "errors": null
+}
+```
+
+---
+
+### GET `/sectors/{id}/`
+
+Full detail for a single sector including its licence types.
+
+**Auth**: None required
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Licence sector retrieved successfully.",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Telecommunications",
+    "code": "TELECOM",
+    "description": "Telecommunications licences for network operators and service providers.",
+    "icon": "radio-tower",
+    "sort_order": 1,
+    "is_active": true,
+    "licence_types": [
+      {
+        "id": "660e8400-e29b-41d4-a716-446655440001",
+        "name": "Type A — Public Mobile Network",
+        "code": "TYPE_A",
+        "sector": "550e8400-e29b-41d4-a716-446655440000",
+        "sector_name": "Telecommunications",
+        "sector_code": "TELECOM",
+        "description": "Licence for public mobile network operators.",
+        "fee_amount": "50000.00",
+        "annual_fee": "25000.00",
+        "renewal_fee": "30000.00",
+        "fee_currency": "BWP",
+        "validity_period_months": 12,
+        "is_domain_applicable": false,
+        "sort_order": 1,
+        "is_active": true
+      }
+    ],
+    "created_at": "2026-01-01T00:00:00Z",
+    "updated_at": "2026-01-01T00:00:00Z"
+  },
+  "errors": null
+}
+```
+
+**Error `404`** — sector not found
+
+---
+
 ## Public — Licence Types & Verification
 
 ### GET `/types/`
@@ -109,33 +231,34 @@ List all active licence types available for application.
 
 | Param | Description |
 |---|---|
-| `search` | Search by name or code |
-| `ordering` | Sort by `name`, `fee_amount`, `-fee_amount` |
-| `page` / `page_size` | Pagination |
+| `search` | Search by name, code, or description |
+| `ordering` | Sort by `name`, `code`, `fee_amount` |
 
 **Response `200 OK`**
 
 ```json
 {
   "success": true,
-  "message": "Licence types retrieved.",
-  "data": {
-    "count": 8,
-    "next": null,
-    "previous": null,
-    "results": [
-      {
-        "id": "550e8400-e29b-41d4-a716-446655440000",
-        "name": "Type A — Public Mobile Network",
-        "code": "TYPE_A",
-        "description": "Licence for public mobile network operators.",
-        "fee_amount": "50000.00",
-        "fee_currency": "BWP",
-        "validity_period_months": 12,
-        "is_active": true
-      }
-    ]
-  },
+  "message": "Licence types retrieved successfully.",
+  "data": [
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "name": "Type A — Public Mobile Network",
+      "code": "TYPE_A",
+      "sector": "550e8400-e29b-41d4-a716-446655440000",
+      "sector_name": "Telecommunications",
+      "sector_code": "TELECOM",
+      "description": "Licence for public mobile network operators.",
+      "fee_amount": "50000.00",
+      "annual_fee": "25000.00",
+      "renewal_fee": "30000.00",
+      "fee_currency": "BWP",
+      "validity_period_months": 12,
+      "is_domain_applicable": false,
+      "sort_order": 1,
+      "is_active": true
+    }
+  ],
   "errors": null
 }
 ```
@@ -144,7 +267,7 @@ List all active licence types available for application.
 
 ### GET `/types/{id}/`
 
-Full licence type detail including the requirements text for applicants.
+Full licence type detail including requirements, eligibility criteria, and required documents.
 
 **Auth**: None required
 
@@ -153,16 +276,25 @@ Full licence type detail including the requirements text for applicants.
 ```json
 {
   "success": true,
-  "message": "Licence type retrieved.",
+  "message": "Licence type retrieved successfully.",
   "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "id": "660e8400-e29b-41d4-a716-446655440001",
     "name": "Type A — Public Mobile Network",
     "code": "TYPE_A",
+    "sector": "550e8400-e29b-41d4-a716-446655440000",
+    "sector_name": "Telecommunications",
+    "sector_code": "TELECOM",
     "description": "Licence for public mobile network operators.",
     "requirements": "1. Proof of incorporation...\n2. Technical capability statement...",
+    "eligibility_criteria": "Must be a registered Botswana company.",
+    "required_documents": "Certificate of Incorporation, Tax Clearance, Technical Plan",
     "fee_amount": "50000.00",
+    "annual_fee": "25000.00",
+    "renewal_fee": "30000.00",
     "fee_currency": "BWP",
     "validity_period_months": 12,
+    "is_domain_applicable": false,
+    "sort_order": 1,
     "is_active": true,
     "created_at": "2026-01-01T00:00:00Z",
     "updated_at": "2026-01-01T00:00:00Z"
@@ -185,13 +317,13 @@ Public licence verification. Looks up an issued licence by licence number or com
 
 | Param | Description |
 |---|---|
-| `licence_no` | Exact licence number (e.g. `LIC-2025-00042`) |
+| `licence_no` | Exact licence number (e.g. `LIC-ISP-2026-000001`) |
 | `company` | Company/organisation name (partial match) |
 
 **Example requests**
 
 ```
-GET /api/v1/licensing/verify/?licence_no=LIC-2025-00042
+GET /api/v1/licensing/verify/?licence_no=LIC-ISP-2026-000001
 GET /api/v1/licensing/verify/?company=Mascom
 ```
 
@@ -203,9 +335,9 @@ GET /api/v1/licensing/verify/?company=Mascom
   "message": "1 licence(s) found.",
   "data": [
     {
-      "licence_number": "LIC-2025-00042",
-      "licence_type_name": "Type A — Public Mobile Network",
-      "licence_type_code": "TYPE_A",
+      "licence_number": "LIC-ISP-2026-000001",
+      "licence_type_name": "Internet Service Provider",
+      "licence_type_code": "ISP",
       "organisation_name": "Mascom Wireless",
       "issued_date": "2025-03-01",
       "expiry_date": "2026-03-01",
@@ -218,18 +350,8 @@ GET /api/v1/licensing/verify/?company=Mascom
 }
 ```
 
-**Response `200 OK`** — no match
-
-```json
-{
-  "success": true,
-  "message": "No licences found matching the provided criteria.",
-  "data": [],
-  "errors": null
-}
-```
-
-**Error `400`** — neither `licence_no` nor `company` provided
+**Error `400`** — neither `licence_no` nor `company` provided  
+**Error `404`** — no licence found matching the provided details
 
 ---
 
@@ -246,36 +368,31 @@ List all applications belonging to the authenticated user.
 | Param | Description |
 |---|---|
 | `status` | Filter by status value (e.g. `SUBMITTED`, `UNDER_REVIEW`) |
-| `ordering` | Sort by `created_at`, `submitted_at`, `-created_at` |
-| `page` / `page_size` | Pagination |
+| `licence_type` | Filter by licence type UUID |
+| `ordering` | Sort by `created_at`, `submitted_at`, `status` |
 
 **Response `200 OK`**
 
 ```json
 {
   "success": true,
-  "message": "Applications retrieved.",
-  "data": {
-    "count": 3,
-    "next": null,
-    "previous": null,
-    "results": [
-      {
-        "id": "660e8400-e29b-41d4-a716-446655440001",
-        "reference_number": "APP-2026-00001",
-        "licence_type_name": "Type A — Public Mobile Network",
-        "licence_type_code": "TYPE_A",
-        "organisation_name": "ACME Corp",
-        "status": "SUBMITTED",
-        "status_display": "Submitted",
-        "submitted_at": "2026-03-10T08:00:00Z",
-        "decision_date": null,
-        "has_licence": false,
-        "created_at": "2026-03-09T14:00:00Z",
-        "updated_at": "2026-03-10T08:00:00Z"
-      }
-    ]
-  },
+  "message": "Applications retrieved successfully.",
+  "data": [
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "reference_number": "APP-2026-00001",
+      "licence_type_name": "Type A — Public Mobile Network",
+      "licence_type_code": "TYPE_A",
+      "organisation_name": "ACME Corp",
+      "status": "SUBMITTED",
+      "status_display": "Submitted",
+      "submitted_at": "2026-03-10T08:00:00Z",
+      "decision_date": null,
+      "has_licence": false,
+      "created_at": "2026-03-09T14:00:00Z",
+      "updated_at": "2026-03-10T08:00:00Z"
+    }
+  ],
   "errors": null
 }
 ```
@@ -323,10 +440,16 @@ Submit a new licence application. Set `"submit": true` to submit immediately; om
   "data": {
     "id": "660e8400-e29b-41d4-a716-446655440001",
     "reference_number": "APP-2026-00001",
-    "licence_type": "550e8400-e29b-41d4-a716-446655440000",
+    "licence_type_name": "Type A — Public Mobile Network",
+    "licence_type_code": "TYPE_A",
     "organisation_name": "ACME Corp",
     "status": "SUBMITTED",
-    "submitted_at": "2026-03-10T08:00:00Z"
+    "status_display": "Submitted",
+    "submitted_at": "2026-03-10T08:00:00Z",
+    "decision_date": null,
+    "has_licence": false,
+    "created_at": "2026-03-09T14:00:00Z",
+    "updated_at": "2026-03-10T08:00:00Z"
   },
   "errors": null
 }
@@ -347,7 +470,7 @@ Full application detail including embedded licence type info, uploaded documents
 ```json
 {
   "success": true,
-  "message": "Application retrieved.",
+  "message": "Application retrieved successfully.",
   "data": {
     "id": "660e8400-e29b-41d4-a716-446655440001",
     "reference_number": "APP-2026-00001",
@@ -355,9 +478,17 @@ Full application detail including embedded licence type info, uploaded documents
       "id": "550e8400-e29b-41d4-a716-446655440000",
       "name": "Type A — Public Mobile Network",
       "code": "TYPE_A",
+      "sector": "...",
+      "sector_name": "Telecommunications",
+      "sector_code": "TELECOM",
+      "description": "Licence for public mobile network operators.",
       "fee_amount": "50000.00",
+      "annual_fee": "25000.00",
+      "renewal_fee": "30000.00",
       "fee_currency": "BWP",
       "validity_period_months": 12,
+      "is_domain_applicable": false,
+      "sort_order": 1,
       "is_active": true
     },
     "organisation_name": "ACME Corp",
@@ -495,35 +626,30 @@ List all licences held by the authenticated user.
 | Param | Description |
 |---|---|
 | `status` | Filter by licence status (`ACTIVE`, `EXPIRED`, etc.) |
-| `ordering` | Sort by `expiry_date`, `-expiry_date`, `issued_date` |
-| `page` / `page_size` | Pagination |
+| `licence_type` | Filter by licence type UUID |
+| `ordering` | Sort by `issued_date`, `expiry_date`, `status` |
 
 **Response `200 OK`**
 
 ```json
 {
   "success": true,
-  "message": "Licences retrieved.",
-  "data": {
-    "count": 1,
-    "next": null,
-    "previous": null,
-    "results": [
-      {
-        "id": "990e8400-e29b-41d4-a716-446655440005",
-        "licence_number": "LIC-2026-00001",
-        "licence_type_name": "Type A — Public Mobile Network",
-        "licence_type_code": "TYPE_A",
-        "organisation_name": "ACME Corp",
-        "issued_date": "2026-03-15",
-        "expiry_date": "2027-03-15",
-        "status": "ACTIVE",
-        "status_display": "Active",
-        "is_expired": false,
-        "days_until_expiry": 360
-      }
-    ]
-  },
+  "message": "Licences retrieved successfully.",
+  "data": [
+    {
+      "id": "990e8400-e29b-41d4-a716-446655440005",
+      "licence_number": "LIC-ISP-2026-000001",
+      "licence_type_name": "Internet Service Provider",
+      "licence_type_code": "ISP",
+      "organisation_name": "ACME Corp",
+      "issued_date": "2026-03-15",
+      "expiry_date": "2027-03-15",
+      "status": "ACTIVE",
+      "status_display": "Active",
+      "is_expired": false,
+      "days_until_expiry": 360
+    }
+  ],
   "errors": null
 }
 ```
@@ -541,17 +667,25 @@ Full licence detail including embedded licence type and source application refer
 ```json
 {
   "success": true,
-  "message": "Licence retrieved.",
+  "message": "Licence retrieved successfully.",
   "data": {
     "id": "990e8400-e29b-41d4-a716-446655440005",
-    "licence_number": "LIC-2026-00001",
+    "licence_number": "LIC-ISP-2026-000001",
     "licence_type": {
-      "id": "550e8400-e29b-41d4-a716-446655440000",
-      "name": "Type A — Public Mobile Network",
-      "code": "TYPE_A",
-      "fee_amount": "50000.00",
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "name": "Internet Service Provider",
+      "code": "ISP",
+      "sector": "...",
+      "sector_name": "Telecommunications",
+      "sector_code": "TELECOM",
+      "description": "...",
+      "fee_amount": "15000.00",
+      "annual_fee": "10000.00",
+      "renewal_fee": "12000.00",
       "fee_currency": "BWP",
       "validity_period_months": 12,
+      "is_domain_applicable": true,
+      "sort_order": 2,
       "is_active": true
     },
     "organisation_name": "ACME Corp",
@@ -599,8 +733,7 @@ Submit a renewal application for an active or soon-to-expire licence. Creates a 
 }
 ```
 
-**Error `400`** — licence is not in a renewable status  
-**Error `403`** — not the licence holder  
+**Error `400`** — licence is revoked or renewal already in progress  
 **Error `404`** — licence not found
 
 ---
@@ -615,7 +748,7 @@ Download the PDF licence certificate. If a stored certificate exists, it is serv
 
 ```
 Content-Type: application/pdf
-Content-Disposition: attachment; filename="BOCRA_Licence_LIC-2026-00001.pdf"
+Content-Disposition: attachment; filename="BOCRA_Licence_LIC-ISP-2026-000001.pdf"
 
 <binary PDF data>
 ```
@@ -632,7 +765,7 @@ Content-Disposition: attachment; filename="BOCRA_Licence_LIC-2026-00001.pdf"
 
 ### PATCH `/applications/{id}/status/`
 
-Drive the application state machine. Validates that the requested transition is legal before applying it. Automatically creates a status log entry.
+Drive the application state machine. Validates that the requested transition is legal before applying it. Automatically creates a status log entry. **On `APPROVED`, automatically creates a `Licence` record, generates a PDF certificate, and upgrades the applicant's role to `LICENSEE`.**
 
 **Auth**: Staff
 
@@ -654,17 +787,29 @@ Drive the application state machine. Validates that the requested transition is 
 | `info_request_message` | Conditional | Required when `status` is `INFO_REQUESTED` |
 | `internal_notes` | No | Not visible to the applicant |
 
-**Response `200 OK`**
+**Response `200 OK`** — standard status change
 
 ```json
 {
   "success": true,
   "message": "Application status updated to 'Under Review'.",
   "data": {
-    "id": "660e8400-e29b-41d4-a716-446655440001",
-    "reference_number": "APP-2026-00001",
     "status": "UNDER_REVIEW",
-    "status_display": "Under Review"
+    "licence_number": null
+  },
+  "errors": null
+}
+```
+
+**Response `200 OK`** — approval (licence auto-created)
+
+```json
+{
+  "success": true,
+  "message": "Application status updated to 'Approved'. Licence LIC-ISP-2026-000001 issued.",
+  "data": {
+    "status": "APPROVED",
+    "licence_number": "LIC-ISP-2026-000001"
   },
   "errors": null
 }
@@ -689,38 +834,32 @@ List all applications across all users. Includes applicant name and email fields
 | `status` | Filter by status |
 | `licence_type` | Filter by licence type UUID |
 | `search` | Search by reference number, organisation name, or applicant email |
-| `ordering` | Sort by `submitted_at`, `-submitted_at`, `created_at` |
-| `page` / `page_size` | Pagination |
+| `ordering` | Sort by `submitted_at`, `created_at`, `status`, `organisation_name` |
 
 **Response `200 OK`**
 
 ```json
 {
   "success": true,
-  "message": "Applications retrieved.",
-  "data": {
-    "count": 15,
-    "next": null,
-    "previous": null,
-    "results": [
-      {
-        "id": "660e8400-e29b-41d4-a716-446655440001",
-        "reference_number": "APP-2026-00001",
-        "licence_type_name": "Type A — Public Mobile Network",
-        "licence_type_code": "TYPE_A",
-        "organisation_name": "ACME Corp",
-        "status": "SUBMITTED",
-        "status_display": "Submitted",
-        "submitted_at": "2026-03-10T08:00:00Z",
-        "decision_date": null,
-        "has_licence": false,
-        "applicant_name": "Jane Doe",
-        "applicant_email": "jane@acme.bw",
-        "created_at": "2026-03-09T14:00:00Z",
-        "updated_at": "2026-03-10T08:00:00Z"
-      }
-    ]
-  },
+  "message": "Applications retrieved successfully.",
+  "data": [
+    {
+      "id": "660e8400-e29b-41d4-a716-446655440001",
+      "reference_number": "APP-2026-00001",
+      "licence_type_name": "Type A — Public Mobile Network",
+      "licence_type_code": "TYPE_A",
+      "organisation_name": "ACME Corp",
+      "status": "SUBMITTED",
+      "status_display": "Submitted",
+      "submitted_at": "2026-03-10T08:00:00Z",
+      "decision_date": null,
+      "has_licence": false,
+      "applicant_name": "Jane Doe",
+      "applicant_email": "jane@acme.bw",
+      "created_at": "2026-03-09T14:00:00Z",
+      "updated_at": "2026-03-10T08:00:00Z"
+    }
+  ],
   "errors": null
 }
 ```
@@ -743,6 +882,344 @@ Full application detail with additional staff-only fields: internal notes and re
 ```
 
 **Error `404`** — application not found
+
+---
+
+## Staff — Licences
+
+### GET `/staff/licences/`
+
+List all issued licences across all licence holders. Supports search by licence number, organisation name, or holder email/name.
+
+**Auth**: Staff
+
+**Query parameters**
+
+| Param | Description |
+|---|---|
+| `status` | Filter by licence status (`ACTIVE`, `EXPIRED`, etc.) |
+| `licence_type` | Filter by licence type UUID |
+| `search` | Search by licence number, organisation name, holder email, first name, or last name |
+| `ordering` | Sort by `issued_date`, `expiry_date`, `status`, `licence_number` |
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Licences retrieved successfully.",
+  "data": [
+    {
+      "id": "990e8400-e29b-41d4-a716-446655440005",
+      "licence_number": "LIC-ISP-2026-000001",
+      "licence_type_name": "Internet Service Provider",
+      "licence_type_code": "ISP",
+      "organisation_name": "ACME Corp",
+      "issued_date": "2026-03-15",
+      "expiry_date": "2027-03-15",
+      "status": "ACTIVE",
+      "status_display": "Active",
+      "is_expired": false,
+      "days_until_expiry": 360
+    }
+  ],
+  "errors": null
+}
+```
+
+---
+
+## Staff — Sectors CRUD
+
+> All endpoints in this section require `Staff`, `Admin`, or `SuperAdmin` role.
+
+### GET `/staff/sectors/`
+
+List all sectors including inactive ones (unlike the public endpoint which only returns active sectors).
+
+**Auth**: Staff
+
+**Query parameters**
+
+| Param | Description |
+|---|---|
+| `search` | Search by name or code |
+| `ordering` | Sort by `sort_order`, `name` |
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Sectors retrieved successfully.",
+  "data": [
+    {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Telecommunications",
+      "code": "TELECOM",
+      "description": "Telecommunications licences for network operators and service providers.",
+      "icon": "radio-tower",
+      "sort_order": 1,
+      "is_active": true,
+      "type_count": 4
+    }
+  ],
+  "errors": null
+}
+```
+
+---
+
+### POST `/staff/sectors/create/`
+
+Create a new regulatory sector.
+
+**Auth**: Staff
+
+**Request body**
+
+```json
+{
+  "name": "Postal Services",
+  "code": "POSTAL",
+  "description": "Licences for postal and courier service operators.",
+  "icon": "mail",
+  "sort_order": 5,
+  "is_active": true
+}
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `name` | Yes | Sector name |
+| `code` | Yes | Unique uppercase code |
+| `description` | No | Human-readable description |
+| `icon` | No | Icon identifier |
+| `sort_order` | No | Display ordering (default: 0) |
+| `is_active` | No | Default: `true` |
+
+**Response `201 Created`**
+
+```json
+{
+  "success": true,
+  "message": "Sector created successfully.",
+  "data": {
+    "id": "...",
+    "name": "Postal Services",
+    "code": "POSTAL",
+    "description": "Licences for postal and courier service operators.",
+    "icon": "mail",
+    "sort_order": 5,
+    "is_active": true,
+    "type_count": 0
+  },
+  "errors": null
+}
+```
+
+**Error `400`** — validation failure (e.g. duplicate code)
+
+---
+
+### PATCH `/staff/sectors/{id}/`
+
+Update an existing sector. Supports partial updates.
+
+**Auth**: Staff
+
+**Request body** (partial)
+
+```json
+{
+  "description": "Updated description.",
+  "is_active": false
+}
+```
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Sector updated successfully.",
+  "data": { "..." },
+  "errors": null
+}
+```
+
+**Error `400`** — validation failure  
+**Error `404`** — sector not found
+
+---
+
+### DELETE `/staff/sectors/{id}/delete/`
+
+Soft-delete a sector. Will fail if the sector still has active licence types.
+
+**Auth**: Staff
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Sector deleted successfully.",
+  "data": null,
+  "errors": null
+}
+```
+
+**Error `400`** — sector has active licence types  
+**Error `404`** — sector not found
+
+---
+
+## Staff — Licence Types CRUD
+
+> All endpoints in this section require `Staff`, `Admin`, or `SuperAdmin` role.
+
+### GET `/staff/types/`
+
+List all licence types including inactive ones. Supports filtering by sector, active status, and domain applicability.
+
+**Auth**: Staff
+
+**Query parameters**
+
+| Param | Description |
+|---|---|
+| `is_active` | Filter by active status (`true` / `false`) |
+| `sector` | Filter by sector UUID |
+| `is_domain_applicable` | Filter by domain applicability |
+| `search` | Search by name, code, or description |
+| `ordering` | Sort by `name`, `code`, `sort_order`, `fee_amount` |
+
+**Response `200 OK`** — same shape as `GET /types/`
+
+---
+
+### POST `/staff/types/create/`
+
+Create a new licence type.
+
+**Auth**: Staff
+
+**Request body**
+
+```json
+{
+  "name": "Internet Service Provider",
+  "code": "ISP",
+  "sector": "550e8400-e29b-41d4-a716-446655440000",
+  "description": "Licence for Internet service providers.",
+  "requirements": "1. Network infrastructure plan...",
+  "eligibility_criteria": "Must be a registered Botswana company.",
+  "required_documents": "Certificate of Incorporation, BOCRA Application Form",
+  "fee_amount": "15000.00",
+  "annual_fee": "10000.00",
+  "renewal_fee": "12000.00",
+  "fee_currency": "BWP",
+  "validity_period_months": 12,
+  "is_domain_applicable": true,
+  "sort_order": 2,
+  "is_active": true
+}
+```
+
+| Field | Required | Notes |
+|---|---|---|
+| `name` | Yes | |
+| `code` | Yes | Unique uppercase code |
+| `sector` | Yes | UUID of an existing sector |
+| `description` | No | |
+| `requirements` | No | Requirements text for applicants |
+| `eligibility_criteria` | No | |
+| `required_documents` | No | Comma-separated document list |
+| `fee_amount` | No | Application fee (default: 0) |
+| `annual_fee` | No | Annual licence fee (default: 0) |
+| `renewal_fee` | No | Renewal fee (default: 0) |
+| `fee_currency` | No | Default: `BWP` |
+| `validity_period_months` | No | Default: 12 |
+| `is_domain_applicable` | No | Whether this type requires .bw domain (default: `false`) |
+| `sort_order` | No | Display ordering (default: 0) |
+| `is_active` | No | Default: `true` |
+
+**Response `201 Created`**
+
+```json
+{
+  "success": true,
+  "message": "Licence type created successfully.",
+  "data": { "..." },
+  "errors": null
+}
+```
+
+**Error `400`** — validation failure (e.g. duplicate code, deleted sector)
+
+---
+
+### GET `/staff/types/{id}/`
+
+Full licence type detail for staff view.
+
+**Auth**: Staff
+
+**Response `200 OK`** — same shape as `GET /types/{id}/`
+
+---
+
+### PATCH `/staff/types/{id}/update/`
+
+Update an existing licence type. Supports partial updates.
+
+**Auth**: Staff
+
+**Request body** (partial)
+
+```json
+{
+  "fee_amount": "20000.00",
+  "is_active": false
+}
+```
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Licence type updated successfully.",
+  "data": { "..." },
+  "errors": null
+}
+```
+
+**Error `400`** — validation failure  
+**Error `404`** — licence type not found
+
+---
+
+### DELETE `/staff/types/{id}/delete/`
+
+Soft-delete a licence type. Will fail if the type has active (non-terminal) applications.
+
+**Auth**: Staff
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Licence type deleted successfully.",
+  "data": null,
+  "errors": null
+}
+```
+
+**Error `400`** — type has active applications  
+**Error `404`** — licence type not found
 
 ---
 
