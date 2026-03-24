@@ -18,11 +18,11 @@ urlpatterns = [
     path("", views.PublicPublicationListView.as_view(), name="list"),
 
     # ── Staff ─────────────────────────────────────────────────────────────────
+    path("staff/list/", views.StaffPublicationListView.as_view(), name="staff-list"),
     path("staff/<uuid:pk>/publish/", views.PublishPublicationView.as_view(), name="staff-publish"),
     path("staff/<uuid:pk>/archive/", views.ArchivePublicationView.as_view(), name="staff-archive"),
     path("staff/<uuid:pk>/delete/", views.DeletePublicationView.as_view(), name="staff-delete"),
     path("staff/<uuid:pk>/edit/", views.StaffPublicationUpdateView.as_view(), name="staff-update"),
     path("staff/<uuid:pk>/", views.StaffPublicationDetailView.as_view(), name="staff-detail"),
     path("staff/", views.StaffPublicationCreateView.as_view(), name="staff-create"),
-    path("staff/list/", views.StaffPublicationListView.as_view(), name="staff-list"),
 ]
