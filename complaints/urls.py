@@ -9,6 +9,7 @@ from .views import (
     AddCaseNoteView,
     AssignComplaintView,
     ComplaintCategoriesView,
+    ComplaintCountView,
     ComplaintDetailView,
     MyComplaintsView,
     ResolveComplaintView,
@@ -39,5 +40,6 @@ urlpatterns = [
     path("<uuid:pk>/notes/",              AddCaseNoteView.as_view(),         name="add-note"),
     path("<uuid:pk>/resolve/",            ResolveComplaintView.as_view(),    name="resolve"),
     path("staff/",                        StaffComplaintListView.as_view(),  name="staff-list"),
+    path("staff/counts/",                 ComplaintCountView.as_view(),       name="staff-counts"),
     path("staff/<uuid:pk>/",              StaffComplaintDetailView.as_view(), name="staff-detail"),
 ]
