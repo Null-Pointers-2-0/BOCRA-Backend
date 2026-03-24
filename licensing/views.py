@@ -53,6 +53,7 @@ from .models import (
     ApplicationDocument,
     ApplicationStatus,
     Licence,
+    LicenceSector,
     LicenceStatus,
     LicenceType,
 )
@@ -63,11 +64,16 @@ from .serializers import (
     DocumentUploadSerializer,
     LicenceDetailSerializer,
     LicenceListSerializer,
+    LicenceSectorDetailSerializer,
+    LicenceSectorListSerializer,
     LicenceTypeDetailSerializer,
     LicenceTypeListSerializer,
     LicenceVerifySerializer,
     StaffApplicationDetailSerializer,
     StaffApplicationListSerializer,
+    StaffLicenceTypeCreateSerializer,
+    StaffLicenceTypeUpdateSerializer,
+    StaffSectorCreateSerializer,
     StatusUpdateSerializer,
 )
 from .tasks import (
@@ -103,7 +109,7 @@ class LicenceTypeListView(generics.ListAPIView):
     ordering = ["name"]
 
     def get_queryset(self):
-        return LicenceType.objects.filter(is_active=True, is_deleted=False)
+        return LicenceType.objects.filter(is_active=True, is_deleted=False).select_related("sector")
 
     def list(self, request, *args, **kwargs):
         qs = self.filter_queryset(self.get_queryset())
@@ -125,7 +131,7 @@ class LicenceTypeDetailView(generics.RetrieveAPIView):
 
     serializer_class = LicenceTypeDetailSerializer
     permission_classes = [AllowAny]
-    queryset = LicenceType.objects.filter(is_deleted=False)
+    queryset = LicenceType.objects.filter(is_deleted=False).select_related("sector")
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -252,7 +258,7 @@ class MyApplicationsView(generics.ListCreateAPIView):
         # Fire notification email if submitted (not draft)
         if application.status == ApplicationStatus.SUBMITTED:
             try:
-                send_application_submitted_email.delay(str(application.id))
+                send_application_submitted_email(str(application.id))
             except Exception:
                 logger.warning("Celery unavailable — skipping submission email.")
 
@@ -469,9 +475,9 @@ class UpdateApplicationStatusView(APIView):
 
         # Fire notification email
         try:
-            send_application_status_email.delay(str(application.id), new_status)
+            send_application_status_email(str(application.id), new_status)
         except Exception:
-            logger.warning("Celery unavailable — skipping status change email.")
+            logger.warning("Email unavailable — skipping status change email.")
 
         msg = f"Application status updated to '{application.get_status_display()}'."
         if licence:
@@ -718,9 +724,9 @@ class LicenceRenewView(APIView):
             )
 
         try:
-            send_application_submitted_email.delay(str(application.id))
+            send_application_submitted_email(str(application.id))
         except Exception:
-            logger.warning("Celery unavailable — skipping renewal submitted email.")
+            logger.warning("Email unavailable — skipping renewal submitted email.")
 
         return Response(
             api_success(
@@ -803,3 +809,366 @@ class LicenceCertificateView(APIView):
             f'attachment; filename="BOCRA_Licence_{licence.licence_number}.pdf"'
         )
         return response
+
+
+# ─── LICENCE SECTORS (Public) ─────────────────────────────────────────────────
+
+@extend_schema(tags=["Licensing — Public"], summary="List all active licence sectors")
+class LicenceSectorListView(generics.ListAPIView):
+    """
+    GET /api/v1/licensing/sectors/
+
+    List all active regulatory sectors.
+    Auth: Public
+    """
+
+    serializer_class = LicenceSectorListSerializer
+    permission_classes = [AllowAny]
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ["name", "code", "description"]
+    ordering_fields = ["name", "sort_order"]
+    ordering = ["sort_order", "name"]
+
+    def get_queryset(self):
+        return LicenceSector.objects.filter(is_active=True, is_deleted=False)
+
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(qs, many=True)
+        return Response(
+            api_success(serializer.data, "Licence sectors retrieved successfully."),
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Licensing — Public"], summary="Retrieve a licence sector with its licence types")
+class LicenceSectorDetailView(generics.RetrieveAPIView):
+    """
+    GET /api/v1/licensing/sectors/<pk>/
+
+    Full detail for a single sector including its licence types.
+    Auth: Public
+    """
+
+    serializer_class = LicenceSectorDetailSerializer
+    permission_classes = [AllowAny]
+    queryset = LicenceSector.objects.filter(is_deleted=False)
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(
+            api_success(serializer.data, "Licence sector retrieved successfully."),
+            status=status.HTTP_200_OK,
+        )
+
+
+# ─── STAFF SECTOR CRUD ───────────────────────────────────────────────────────
+
+# ─── STAFF LICENCES (Staff) ──────────────────────────────────────────────────
+
+@extend_schema(tags=["Licensing — Staff"], summary="List all issued licences (staff)")
+class StaffLicenceListView(generics.ListAPIView):
+    """
+    GET /api/v1/licensing/staff/licences/
+
+    Staff view — all issued licences across all holders.
+    Auth: Staff
+    """
+
+    serializer_class = LicenceListSerializer
+    permission_classes = [IsStaff]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["status", "licence_type"]
+    search_fields = [
+        "licence_number", "organisation_name",
+        "holder__email", "holder__first_name", "holder__last_name",
+    ]
+    ordering_fields = ["issued_date", "expiry_date", "status", "licence_number"]
+    ordering = ["-issued_date"]
+
+    def get_queryset(self):
+        return Licence.objects.filter(
+            is_deleted=False
+        ).select_related("licence_type", "holder")
+
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(qs, many=True)
+        return Response(
+            api_success(serializer.data, "Licences retrieved successfully."),
+            status=status.HTTP_200_OK,
+        )
+
+
+# ─── STAFF SECTOR CRUD ───────────────────────────────────────────────────────
+
+@extend_schema(tags=["Licensing — Staff"], summary="List all sectors (including inactive) for staff")
+class StaffSectorListView(generics.ListAPIView):
+    """
+    GET /api/v1/licensing/staff/sectors/
+
+    Staff view — all sectors including inactive ones.
+    Auth: Staff
+    """
+
+    serializer_class = LicenceSectorListSerializer
+    permission_classes = [IsStaff]
+    filter_backends = [SearchFilter, OrderingFilter]
+    search_fields = ["name", "code"]
+    ordering = ["sort_order", "name"]
+
+    def get_queryset(self):
+        return LicenceSector.objects.filter(is_deleted=False)
+
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(qs, many=True)
+        return Response(
+            api_success(serializer.data, "Sectors retrieved successfully."),
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Licensing — Staff"], summary="Create a new licence sector")
+class StaffSectorCreateView(generics.CreateAPIView):
+    """
+    POST /api/v1/licensing/staff/sectors/
+
+    Create a new regulatory sector.
+    Auth: Staff
+    """
+
+    serializer_class = StaffSectorCreateSerializer
+    permission_classes = [IsStaff]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                api_error("Sector creation failed.", serializer.errors),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        sector = serializer.save(created_by=request.user, modified_by=request.user)
+        return Response(
+            api_success(
+                LicenceSectorListSerializer(sector).data,
+                "Sector created successfully.",
+            ),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema(tags=["Licensing — Staff"], summary="Update a licence sector")
+class StaffSectorUpdateView(generics.UpdateAPIView):
+    """
+    PATCH /api/v1/licensing/staff/sectors/<pk>/
+
+    Update an existing sector.
+    Auth: Staff
+    """
+
+    serializer_class = StaffSectorCreateSerializer
+    permission_classes = [IsStaff]
+    queryset = LicenceSector.objects.filter(is_deleted=False)
+    http_method_names = ["patch"]
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(
+                api_error("Sector update failed.", serializer.errors),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        sector = serializer.save(modified_by=request.user)
+        return Response(
+            api_success(
+                LicenceSectorListSerializer(sector).data,
+                "Sector updated successfully.",
+            ),
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Licensing — Staff"], summary="Delete (soft) a licence sector")
+class StaffSectorDeleteView(generics.DestroyAPIView):
+    """
+    DELETE /api/v1/licensing/staff/sectors/<pk>/
+
+    Soft-delete a sector.
+    Auth: Staff
+    """
+
+    permission_classes = [IsStaff]
+    queryset = LicenceSector.objects.filter(is_deleted=False)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        # Check if there are active licence types under this sector
+        if instance.licence_types.filter(is_active=True, is_deleted=False).exists():
+            return Response(
+                api_error("Cannot delete a sector that has active licence types. Deactivate them first."),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        instance.is_deleted = True
+        instance.save(update_fields=["is_deleted", "updated_at"])
+        return Response(
+            api_success(message="Sector deleted successfully."),
+            status=status.HTTP_200_OK,
+        )
+
+
+# ─── STAFF LICENCE TYPE CRUD ─────────────────────────────────────────────────
+
+@extend_schema(tags=["Licensing — Staff"], summary="List all licence types (including inactive) for staff")
+class StaffLicenceTypeListView(generics.ListAPIView):
+    """
+    GET /api/v1/licensing/staff/types/
+
+    Staff view — all licence types including inactive.
+    Auth: Staff
+    """
+
+    serializer_class = LicenceTypeListSerializer
+    permission_classes = [IsStaff]
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ["is_active", "sector", "is_domain_applicable"]
+    search_fields = ["name", "code", "description"]
+    ordering_fields = ["name", "code", "sort_order", "fee_amount"]
+    ordering = ["sort_order", "name"]
+
+    def get_queryset(self):
+        return LicenceType.objects.filter(is_deleted=False).select_related("sector")
+
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(self.get_queryset())
+        serializer = self.get_serializer(qs, many=True)
+        return Response(
+            api_success(serializer.data, "Licence types retrieved successfully."),
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Licensing — Staff"], summary="Create a new licence type")
+class StaffLicenceTypeCreateView(generics.CreateAPIView):
+    """
+    POST /api/v1/licensing/staff/types/
+
+    Create a new licence type.
+    Auth: Staff
+    """
+
+    serializer_class = StaffLicenceTypeCreateSerializer
+    permission_classes = [IsStaff]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(
+                api_error("Licence type creation failed.", serializer.errors),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        lt = serializer.save(created_by=request.user, modified_by=request.user)
+        return Response(
+            api_success(
+                LicenceTypeListSerializer(lt).data,
+                "Licence type created successfully.",
+            ),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema(tags=["Licensing — Staff"], summary="Retrieve full licence type detail (staff)")
+class StaffLicenceTypeDetailView(generics.RetrieveAPIView):
+    """
+    GET /api/v1/licensing/staff/types/<pk>/
+
+    Staff full detail for a licence type.
+    Auth: Staff
+    """
+
+    serializer_class = LicenceTypeDetailSerializer
+    permission_classes = [IsStaff]
+    queryset = LicenceType.objects.filter(is_deleted=False).select_related("sector")
+
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(
+            api_success(serializer.data, "Licence type retrieved successfully."),
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Licensing — Staff"], summary="Update a licence type")
+class StaffLicenceTypeUpdateView(generics.UpdateAPIView):
+    """
+    PATCH /api/v1/licensing/staff/types/<pk>/
+
+    Update an existing licence type.
+    Auth: Staff
+    """
+
+    serializer_class = StaffLicenceTypeUpdateSerializer
+    permission_classes = [IsStaff]
+    queryset = LicenceType.objects.filter(is_deleted=False)
+    http_method_names = ["patch"]
+
+    def update(self, request, *args, **kwargs):
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=True)
+        if not serializer.is_valid():
+            return Response(
+                api_error("Licence type update failed.", serializer.errors),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        lt = serializer.save(modified_by=request.user)
+        return Response(
+            api_success(
+                LicenceTypeListSerializer(lt).data,
+                "Licence type updated successfully.",
+            ),
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(tags=["Licensing — Staff"], summary="Delete (soft) a licence type")
+class StaffLicenceTypeDeleteView(generics.DestroyAPIView):
+    """
+    DELETE /api/v1/licensing/staff/types/<pk>/
+
+    Soft-delete a licence type.
+    Auth: Staff
+    """
+
+    permission_classes = [IsStaff]
+    queryset = LicenceType.objects.filter(is_deleted=False)
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        # Check for active applications using this type
+        active_apps = instance.applications.filter(
+            is_deleted=False,
+            status__in=[
+                ApplicationStatus.DRAFT,
+                ApplicationStatus.SUBMITTED,
+                ApplicationStatus.UNDER_REVIEW,
+                ApplicationStatus.INFO_REQUESTED,
+            ],
+        )
+        if active_apps.exists():
+            return Response(
+                api_error(
+                    f"Cannot delete this licence type — it has {active_apps.count()} "
+                    "active application(s). Resolve them first."
+                ),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        instance.is_deleted = True
+        instance.is_active = False
+        instance.save(update_fields=["is_deleted", "is_active", "updated_at"])
+        return Response(
+            api_success(message="Licence type deleted successfully."),
+            status=status.HTTP_200_OK,
+        )

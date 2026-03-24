@@ -66,6 +66,7 @@ class StaffPublicationCreateSerializer(serializers.ModelSerializer):
             "title", "summary", "category", "file", "published_date",
             "version", "is_featured",
         ]
+        extra_kwargs = {"file": {"required": False}}
 
     def validate_category(self, value):
         if value not in PublicationCategory.values:

@@ -35,6 +35,7 @@ urlpatterns = [
     path("api/v1/news/", include("news.urls", namespace="news")),
     path("api/v1/analytics/", include("analytics.urls", namespace="analytics")),
     path("api/v1/notifications/", include("notifications.urls", namespace="notifications")),
+    path("api/v1/domains/", include("domains.urls", namespace="domains")),
 
     # ── API docs (drf-spectacular) ───────────────────────────────────────────
     # Raw OpenAPI 3.0 schema (JSON/YAML) — used by code generators and CI tools

@@ -1,0 +1,40 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to AWS Lightsail
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ubuntu
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            set -e
+
+            cd ~/BOCRA-Backend
+
+            # Pull latest code
+            git pull origin main
+
+            # Activate venv and install any new dependencies
+            source ~/myenv/bin/activate
+            pip install -r requirements.txt --quiet
+
+            # Apply migrations
+            python manage.py migrate --noinput
+
+            # Collect static files
+            python manage.py collectstatic --noinput
+
+            # Restart gunicorn to pick up code changes
+            sudo systemctl restart gunicorn
+
+            echo "Deployment complete."

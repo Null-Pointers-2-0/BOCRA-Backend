@@ -10,19 +10,34 @@ from .models import (
     ApplicationStatus,
     ApplicationStatusLog,
     Licence,
+    LicenceSector,
     LicenceStatus,
     LicenceType,
 )
+
+
+# ─── LICENCE SECTOR ───────────────────────────────────────────────────────────
+
+@admin.register(LicenceSector)
+class LicenceSectorAdmin(admin.ModelAdmin):
+    list_display = ["name", "code", "sort_order", "is_active"]
+    list_filter = ["is_active"]
+    search_fields = ["name", "code"]
+    ordering = ["sort_order", "name"]
+    readonly_fields = ["created_at", "updated_at"]
 
 
 # ─── LICENCE TYPE ─────────────────────────────────────────────────────────────
 
 @admin.register(LicenceType)
 class LicenceTypeAdmin(admin.ModelAdmin):
-    list_display = ["name", "code", "fee_amount", "validity_period_months", "is_active"]
-    list_filter = ["is_active"]
+    list_display = [
+        "name", "code", "sector", "fee_amount", "annual_fee",
+        "validity_period_months", "is_domain_applicable", "is_active",
+    ]
+    list_filter = ["is_active", "sector", "is_domain_applicable"]
     search_fields = ["name", "code"]
-    ordering = ["name"]
+    ordering = ["sort_order", "name"]
     readonly_fields = ["created_at", "updated_at"]
 
 

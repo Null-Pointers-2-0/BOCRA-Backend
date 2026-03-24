@@ -60,6 +60,7 @@ class Publication(AuditableModel):
     )
     file = models.FileField(
         upload_to=publication_file_path,
+        blank=True,
         help_text="Primary document file (PDF, DOCX, XLSX).",
     )
     published_date = models.DateField(

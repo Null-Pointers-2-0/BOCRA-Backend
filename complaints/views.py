@@ -595,3 +595,38 @@ class StaffComplaintDetailView(generics.RetrieveAPIView):
             api_success(serializer.data, "Complaint retrieved successfully."),
             status=status.HTTP_200_OK,
         )
+
+
+# ─── COMPLAINT COUNTS ─────────────────────────────────────────────────────────
+
+@extend_schema(
+    tags=["Complaints — Staff"],
+    summary="Get complaint counts by status (staff)",
+    responses={200: OpenApiTypes.OBJECT},
+)
+class ComplaintCountView(generics.GenericAPIView):
+    """
+    GET /api/v1/complaints/staff/counts/
+
+    Quick badge counts for the admin UI sidebar.
+    Returns total active complaints and breakdown by status.
+    Auth: Staff
+    """
+
+    permission_classes = [IsStaff]
+    serializer_class = StaffComplaintListSerializer  # schema placeholder
+
+    def get(self, request):
+        qs = Complaint.objects.filter(is_deleted=False)
+        total = qs.count()
+        new = qs.filter(status=ComplaintStatus.SUBMITTED).count()
+        active = qs.exclude(
+            status__in=[ComplaintStatus.RESOLVED, ComplaintStatus.CLOSED]
+        ).count()
+        return Response(
+            api_success(
+                {"total": total, "new": new, "active": active},
+                "Complaint counts retrieved.",
+            ),
+            status=status.HTTP_200_OK,
+        )
