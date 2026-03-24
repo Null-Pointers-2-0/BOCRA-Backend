@@ -29,21 +29,33 @@ env/
 .venv/
 ENV/
 
-# ─── Django ──────────────────────────────────────────────────────────────────
-*.log
-local_settings.py
+# ─── Database ───────────────────────────────────────────────────────────────
 db.sqlite3
 db.sqlite3-journal
+*.sql
+*.dump
+
+# ─── Media & Static ───────────────────────────────────────────────────────────
 media/
 staticfiles/
-static_root/
 
-# ─── pytest / coverage ───────────────────────────────────────────────────────
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Testing ───────────────────────────────────────────────────────────────────
 .pytest_cache/
 .coverage
 htmlcov/
 coverage.xml
 *.coveragerc
+
+# ─── Celery ──────────────────────────────────────────────────────────────────
+celerybeat-schedule
+celerybeat.pid
+
+# ─── Redis ───────────────────────────────────────────────────────────────────
+dump.rdb
 
 # ─── IDEs ────────────────────────────────────────────────────────────────────
 .vscode/
@@ -51,14 +63,20 @@ coverage.xml
 *.swp
 *.swo
 *~
-.DS_Store
-Thumbs.db
 
-# ─── Celery ──────────────────────────────────────────────────────────────────
-celerybeat-schedule
-celerybeat.pid
+# ─── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
 # ─── Node (if any frontend tooling in repo) ──────────────────────────────────
 node_modules/
 npm-debug.log*
 yarn-error.log*
+
+# ─── Docker ───────────────────────────────────────────────────────────────────
+docker-compose.override.yml

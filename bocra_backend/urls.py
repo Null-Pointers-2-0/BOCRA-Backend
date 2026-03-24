@@ -20,13 +20,42 @@ from drf_spectacular.views import (
     SpectacularRedocView,
     SpectacularSwaggerView,
 )
+from django.http import JsonResponse
+from apps.core.views import api_documentation
+
+def api_root(request):
+    """API root endpoint with available endpoints."""
+    return JsonResponse({
+        'message': 'BOCRA Digital Platform API',
+        'version': '1.0.0',
+        'endpoints': {
+            'admin': '/admin/',
+            'api_docs': '/api/docs/',
+            'api_redoc': '/api/redoc/',
+            'auth': '/api/v1/auth/',
+            'schema': '/api/schema/'
+        },
+        'authentication': {
+            'register': '/api/v1/auth/register/',
+            'login': '/api/v1/auth/login/',
+            'profile': '/api/v1/auth/profile/',
+            'logout': '/api/v1/auth/logout/',
+            'refresh': '/api/v1/auth/refresh/'
+        }
+    })
 
 urlpatterns = [
-    # ── Django admin ──────────────────────────────────────────────────────────
+    # API Root
+    path('', api_root, name='api_root'),
+    
+    # Django admin
     path("admin/", admin.site.urls),
 
-    # ── API v1 ────────────────────────────────────────────────────────────────
+    # API v1 - Core and Authentication
     path("api/v1/", include("core.urls")),
+    path("api/v1/auth/", include("apps.accounts.urls")),
+    
+    # API v1 - All Modules
     path("api/v1/accounts/", include("accounts.urls", namespace="accounts")),
     path("api/v1/licensing/", include("licensing.urls", namespace="licensing")),
     path("api/v1/complaints/", include("complaints.urls", namespace="complaints")),
@@ -36,13 +65,9 @@ urlpatterns = [
     path("api/v1/analytics/", include("analytics.urls", namespace="analytics")),
     path("api/v1/notifications/", include("notifications.urls", namespace="notifications")),
 
-    # ── API docs (drf-spectacular) ───────────────────────────────────────────
-    # Raw OpenAPI 3.0 schema (JSON/YAML) — used by code generators and CI tools
+    # API Documentation
+    path('api/docs/', api_documentation, name='api_docs'),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    # Swagger UI — interactive browser for testing endpoints
     path("api/swagger/", SpectacularSwaggerView.as_view(url_name="schema"), name="swagger-ui"),
-    # ReDoc — clean, readable API reference for frontend devs
     path("api/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
 ]
-
-
