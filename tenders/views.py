@@ -32,7 +32,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, serializers as drf_serializers, status
 from rest_framework.filters import OrderingFilter, SearchFilter
 from rest_framework.parsers import FormParser, MultiPartParser
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -43,6 +43,7 @@ from core.utils import api_error, api_success
 from .models import (
     Tender,
     TenderAddendum,
+    TenderApplication,
     TenderAward,
     TenderCategory,
     TenderDocument,
@@ -57,6 +58,8 @@ from .serializers import (
     StaffTenderUpdateSerializer,
     TenderAddendumCreateSerializer,
     TenderAddendumSerializer,
+    TenderApplicationCreateSerializer,
+    TenderApplicationListSerializer,
     TenderAwardCreateSerializer,
     TenderDocumentUploadSerializer,
 )
@@ -556,5 +559,95 @@ class DeleteTenderView(generics.GenericAPIView):
         logger.info("Tender %s deleted by %s", tender.pk, request.user.email)
         return Response(
             api_success(None, "Tender deleted successfully."),
+            status=status.HTTP_200_OK,
+        )
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+#  TENDER APPLICATION ENDPOINTS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+@extend_schema(
+    tags=["Tenders — Applications"],
+    summary="Apply for a tender",
+)
+class TenderApplicationCreateView(APIView):
+    """
+    POST /api/v1/tenders/apply/
+
+    Submit an application for an open tender.
+    Auth: Authenticated users.
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = TenderApplicationCreateSerializer
+
+    def post(self, request):
+        serializer = TenderApplicationCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        tender = get_object_or_404(Tender, pk=data["tender"], is_deleted=False)
+
+        if tender.status not in (TenderStatus.OPEN, TenderStatus.CLOSING_SOON):
+            return Response(
+                api_error("This tender is not currently accepting applications."),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if TenderApplication.objects.filter(tender=tender, applicant=request.user).exists():
+            return Response(
+                api_error("You have already applied for this tender."),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        application = TenderApplication.objects.create(
+            tender=tender,
+            applicant=request.user,
+            company_name=data["company_name"],
+            company_registration=data.get("company_registration", ""),
+            contact_person=data["contact_person"],
+            contact_email=data["contact_email"],
+            contact_phone=data.get("contact_phone", ""),
+            proposal_summary=data["proposal_summary"],
+        )
+
+        result = TenderApplicationListSerializer(application).data
+        return Response(
+            api_success(result, "Application submitted successfully."),
+            status=status.HTTP_201_CREATED,
+        )
+
+
+@extend_schema(
+    tags=["Tenders — Applications"],
+    summary="List my tender applications",
+)
+class MyTenderApplicationsView(generics.ListAPIView):
+    """
+    GET /api/v1/tenders/my-applications/
+
+    List applications submitted by the current user.
+    Auth: Authenticated users.
+    """
+
+    serializer_class = TenderApplicationListSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return TenderApplication.objects.filter(
+            applicant=request.user, is_deleted=False
+        ).select_related("tender")
+
+    def list(self, request, *args, **kwargs):
+        qs = self.filter_queryset(
+            TenderApplication.objects.filter(
+                applicant=request.user, is_deleted=False
+            ).select_related("tender")
+        )
+        serializer = self.get_serializer(qs, many=True)
+        return Response(
+            api_success(serializer.data, "Your tender applications."),
             status=status.HTTP_200_OK,
         )

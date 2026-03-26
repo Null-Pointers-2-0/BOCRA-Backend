@@ -17,6 +17,10 @@ urlpatterns = [
     path("<uuid:pk>/", views.PublicTenderDetailView.as_view(), name="detail"),
     path("", views.PublicTenderListView.as_view(), name="list"),
 
+    # ── Applications (Authenticated) ─────────────────────────────────────────
+    path("apply/", views.TenderApplicationCreateView.as_view(), name="apply"),
+    path("my-applications/", views.MyTenderApplicationsView.as_view(), name="my-applications"),
+
     # ── Staff ─────────────────────────────────────────────────────────────────
     path("staff/<uuid:pk>/publish/", views.PublishTenderView.as_view(), name="staff-publish"),
     path("staff/<uuid:pk>/close/", views.CloseTenderView.as_view(), name="staff-close"),
