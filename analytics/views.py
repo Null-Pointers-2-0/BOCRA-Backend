@@ -535,8 +535,9 @@ class StaffDashboardView(APIView):
     """
     GET /api/v1/analytics/dashboard/staff/
 
-    Combined operational dashboard for BOCRA staff.
-    Pulls from licensing, complaints, and telecoms data.
+    Comprehensive operational dashboard for BOCRA staff.
+    Pulls from all platform modules: users, licensing, domains, complaints,
+    telecoms, coverage, QoE, scorecard, alerts, and content.
     Auth: Staff
     """
 
@@ -544,9 +545,17 @@ class StaffDashboardView(APIView):
 
     def get(self, request):
         from complaints.models import Complaint, ComplaintStatus
-        from licensing.models import Application, ApplicationStatus, Licence, LicenceStatus
+        from licensing.models import (
+            Application, ApplicationStatus,
+            Licence, LicenceStatus, LicenceSector,
+        )
+        from domains.models import (
+            Domain, DomainApplication, DomainApplicationStatus,
+            DomainStatus, DomainZone,
+        )
         from news.models import Article, ArticleStatus
         from notifications.models import Notification
+        from alerts.models import AlertCategory, AlertSubscription, AlertLog
         from publications.models import Publication, PublicationStatus
         from tenders.models import Tender, TenderStatus
 
@@ -555,12 +564,17 @@ class StaffDashboardView(APIView):
         today = date.today()
         now = timezone.now()
         thirty_days_ago = now - timedelta(days=30)
+        six_months_ago = now - timedelta(days=180)
 
         # ── Users ────────────────────────────────────────────────────────────
         all_users = User.objects.filter(is_deleted=False)
+        total_users = all_users.count()
+        verified_users = all_users.filter(email_verified=True).count()
         user_data = {
-            "total": all_users.count(),
+            "total": total_users,
             "new_this_month": all_users.filter(date_joined__gte=thirty_days_ago).count(),
+            "verified": verified_users,
+            "verification_rate": round((verified_users / total_users * 100), 1) if total_users else 0,
             "by_role": dict(
                 all_users.values_list("role")
                 .annotate(count=Count("id"))
@@ -570,51 +584,186 @@ class StaffDashboardView(APIView):
 
         # ── Licensing ────────────────────────────────────────────────────────
         all_licences = Licence.objects.filter(is_deleted=False)
+        active_licences = all_licences.filter(status=LicenceStatus.ACTIVE).count()
+        expired_licences = all_licences.filter(status=LicenceStatus.EXPIRED).count()
+        suspended_licences = all_licences.filter(status=LicenceStatus.SUSPENDED).count()
+
+        by_sector = dict(
+            all_licences.filter(status=LicenceStatus.ACTIVE)
+            .values_list("licence_type__sector__name")
+            .annotate(count=Count("id"))
+            .values_list("licence_type__sector__name", "count")
+        )
+
         licence_data = {
-            "active": all_licences.filter(status=LicenceStatus.ACTIVE).count(),
-            "expired": all_licences.filter(status=LicenceStatus.EXPIRED).count(),
-            "suspended": all_licences.filter(status=LicenceStatus.SUSPENDED).count(),
+            "total": all_licences.count(),
+            "active": active_licences,
+            "expired": expired_licences,
+            "suspended": suspended_licences,
             "renewals_due_30d": all_licences.filter(
                 status=LicenceStatus.ACTIVE,
                 expiry_date__lte=today + timedelta(days=30),
                 expiry_date__gte=today,
             ).count(),
+            "renewals_due_60d": all_licences.filter(
+                status=LicenceStatus.ACTIVE,
+                expiry_date__lte=today + timedelta(days=60),
+                expiry_date__gte=today,
+            ).count(),
+            "by_sector": by_sector,
         }
 
         # Applications pipeline
         all_apps = Application.objects.filter(is_deleted=False)
+        total_apps = all_apps.count()
+        approved_apps = all_apps.filter(status=ApplicationStatus.APPROVED).count()
+        rejected_apps = all_apps.filter(status=ApplicationStatus.REJECTED).count()
+        decided_apps = approved_apps + rejected_apps
+
+        # Avg processing time
+        from django.db.models import ExpressionWrapper, DurationField
+        avg_processing = None
+        decided_qs = all_apps.filter(
+            submitted_at__isnull=False,
+            decision_date__isnull=False,
+            status__in=[ApplicationStatus.APPROVED, ApplicationStatus.REJECTED],
+        )
+        if decided_qs.exists():
+            durations = decided_qs.annotate(
+                duration=ExpressionWrapper(
+                    F("decision_date") - F("submitted_at"),
+                    output_field=DurationField(),
+                )
+            ).aggregate(avg_duration=Avg("duration"))
+            if durations["avg_duration"]:
+                avg_processing = round(durations["avg_duration"].total_seconds() / 86400, 1)
+
+        # Application trend (6 months)
+        app_trend = list(
+            all_apps.filter(created_at__gte=six_months_ago)
+            .annotate(month=TruncMonth("created_at"))
+            .values("month")
+            .annotate(count=Count("id"))
+            .order_by("month")
+        )
+        for entry in app_trend:
+            entry["month"] = entry["month"].strftime("%Y-%m")
+
         app_data = {
+            "total": total_apps,
             "pending_review": all_apps.filter(status=ApplicationStatus.SUBMITTED).count(),
             "under_review": all_apps.filter(status=ApplicationStatus.UNDER_REVIEW).count(),
             "info_requested": all_apps.filter(status=ApplicationStatus.INFO_REQUESTED).count(),
-            "approved_total": all_apps.filter(status=ApplicationStatus.APPROVED).count(),
-            "rejected_total": all_apps.filter(status=ApplicationStatus.REJECTED).count(),
+            "approved_total": approved_apps,
+            "rejected_total": rejected_apps,
+            "approval_rate": round((approved_apps / decided_apps * 100), 1) if decided_apps else 0,
+            "avg_processing_days": avg_processing,
+            "recent_30d": all_apps.filter(created_at__gte=thirty_days_ago).count(),
+            "trend_6m": app_trend,
+        }
+
+        # ── Domains ──────────────────────────────────────────────────────────
+        all_domains = Domain.objects.filter(is_deleted=False)
+        active_domains = all_domains.filter(status=DomainStatus.ACTIVE).count()
+        domain_apps = DomainApplication.objects.filter(is_deleted=False)
+
+        by_zone = dict(
+            all_domains.filter(status=DomainStatus.ACTIVE)
+            .values_list("zone__name")
+            .annotate(count=Count("id"))
+            .values_list("zone__name", "count")
+        )
+
+        domain_data = {
+            "total": all_domains.count(),
+            "active": active_domains,
+            "expired": all_domains.filter(status=DomainStatus.EXPIRED).count(),
+            "expiring_30d": all_domains.filter(
+                status=DomainStatus.ACTIVE,
+                expires_at__lte=now + timedelta(days=30),
+                expires_at__gte=now,
+            ).count(),
+            "by_zone": by_zone,
+            "applications": {
+                "total": domain_apps.count(),
+                "pending": domain_apps.filter(status=DomainApplicationStatus.SUBMITTED).count(),
+                "under_review": domain_apps.filter(status=DomainApplicationStatus.UNDER_REVIEW).count(),
+            },
         }
 
         # ── Complaints ───────────────────────────────────────────────────────
         all_complaints = Complaint.objects.filter(is_deleted=False)
+        total_complaints = all_complaints.count()
         open_statuses = [
             ComplaintStatus.SUBMITTED, ComplaintStatus.ASSIGNED,
             ComplaintStatus.INVESTIGATING, ComplaintStatus.AWAITING_RESPONSE,
             ComplaintStatus.REOPENED,
         ]
+        open_count = all_complaints.filter(status__in=open_statuses).count()
+        overdue_count = all_complaints.filter(
+            status__in=open_statuses, sla_deadline__lt=now
+        ).count()
+        resolved_qs = all_complaints.filter(
+            status__in=[ComplaintStatus.RESOLVED, ComplaintStatus.CLOSED]
+        )
+        resolved_count = resolved_qs.count()
+        resolution_rate = round((resolved_count / total_complaints * 100), 1) if total_complaints else 0
+
+        # SLA compliance: on-time resolved / total resolved
+        on_time = resolved_qs.filter(
+            sla_deadline__isnull=False,
+            resolved_at__lte=F("sla_deadline"),
+        ).count()
+        sla_compliance = round((on_time / resolved_count * 100), 1) if resolved_count else 0
+
+        # Avg resolution time
+        avg_resolution = None
+        resolved_with_dates = resolved_qs.filter(resolved_at__isnull=False)
+        if resolved_with_dates.exists():
+            durations = resolved_with_dates.annotate(
+                duration=ExpressionWrapper(
+                    F("resolved_at") - F("created_at"),
+                    output_field=DurationField()
+                )
+            ).aggregate(avg_duration=Avg("duration"))
+            if durations["avg_duration"]:
+                avg_resolution = round(durations["avg_duration"].total_seconds() / 86400, 1)
+
+        # Complaint trend (6 months)
+        complaint_trend = list(
+            all_complaints.filter(created_at__gte=six_months_ago)
+            .annotate(month=TruncMonth("created_at"))
+            .values("month")
+            .annotate(count=Count("id"))
+            .order_by("month")
+        )
+        for entry in complaint_trend:
+            entry["month"] = entry["month"].strftime("%Y-%m")
+
         complaint_data = {
-            "open": all_complaints.filter(status__in=open_statuses).count(),
-            "resolved": all_complaints.filter(
-                status__in=[ComplaintStatus.RESOLVED, ComplaintStatus.CLOSED]
-            ).count(),
-            "overdue": all_complaints.filter(
-                status__in=open_statuses, sla_deadline__lt=now
-            ).count(),
+            "total": total_complaints,
+            "open": open_count,
+            "resolved": resolved_count,
+            "overdue": overdue_count,
             "unassigned": all_complaints.filter(
                 status=ComplaintStatus.SUBMITTED, assigned_to__isnull=True
             ).count(),
+            "resolution_rate": resolution_rate,
+            "sla_compliance": sla_compliance,
+            "avg_resolution_days": avg_resolution,
             "by_category": dict(
                 all_complaints.filter(status__in=open_statuses)
                 .values_list("category")
                 .annotate(count=Count("id"))
                 .values_list("category", "count")
             ),
+            "by_priority": dict(
+                all_complaints.filter(status__in=open_statuses)
+                .values_list("priority")
+                .annotate(count=Count("id"))
+                .values_list("priority", "count")
+            ),
+            "trend_6m": complaint_trend,
         }
 
         # ── Telecoms ─────────────────────────────────────────────────────────
@@ -625,10 +774,21 @@ class StaffDashboardView(APIView):
             .values_list("period", flat=True)
             .first()
         )
+        by_operator_telecoms = []
         if latest_period:
+            period_stats = TelecomsStat.objects.filter(
+                is_deleted=False, period=latest_period
+            ).select_related("operator")
             total_subscribers = (
-                TelecomsStat.objects.filter(is_deleted=False, period=latest_period)
-                .aggregate(total=Sum("subscriber_count"))["total"] or 0
+                period_stats.aggregate(total=Sum("subscriber_count"))["total"] or 0
+            )
+            by_operator_telecoms = list(
+                period_stats.values("operator__name", "operator__code")
+                .annotate(
+                    subscribers=Sum("subscriber_count"),
+                    share=Avg("market_share_percent"),
+                )
+                .order_by("-subscribers")
             )
         operator_count = NetworkOperator.objects.filter(
             is_active=True, is_deleted=False
@@ -638,7 +798,111 @@ class StaffDashboardView(APIView):
             "total_subscribers": total_subscribers,
             "active_operators": operator_count,
             "latest_period": str(latest_period) if latest_period else None,
+            "by_operator": by_operator_telecoms,
         }
+
+        # ── Coverage ─────────────────────────────────────────────────────────
+        try:
+            from coverages.models import CoverageArea, CoverageUpload
+            all_coverage = CoverageArea.objects.filter(is_deleted=False)
+            coverage_data = {
+                "total_areas": all_coverage.count(),
+                "avg_coverage_percent": round(
+                    float(all_coverage.aggregate(avg=Avg("coverage_percentage"))["avg"] or 0), 1
+                ),
+                "by_operator": dict(
+                    all_coverage.values_list("operator__name")
+                    .annotate(count=Count("id"))
+                    .values_list("operator__name", "count")
+                ),
+                "by_technology": dict(
+                    all_coverage.values_list("technology")
+                    .annotate(count=Count("id"))
+                    .values_list("technology", "count")
+                ),
+                "pending_uploads": CoverageUpload.objects.filter(
+                    is_deleted=False, status="PENDING"
+                ).count(),
+            }
+        except ImportError:
+            coverage_data = None
+
+        # ── QoE ──────────────────────────────────────────────────────────────
+        try:
+            from qoe.models import QoEReport
+            all_qoe = QoEReport.objects.filter(is_deleted=False)
+            total_qoe = all_qoe.count()
+            avg_rating = all_qoe.aggregate(avg=Avg("rating"))["avg"]
+
+            qoe_by_operator = list(
+                all_qoe.values("operator__name", "operator__code")
+                .annotate(
+                    avg_rating=Avg("rating"),
+                    report_count=Count("id"),
+                )
+                .order_by("-avg_rating")
+            )
+
+            qoe_data = {
+                "total_reports": total_qoe,
+                "avg_rating": round(float(avg_rating), 2) if avg_rating else None,
+                "reports_last_30d": all_qoe.filter(submitted_at__gte=thirty_days_ago).count(),
+                "flagged_reports": all_qoe.filter(is_flagged=True).count(),
+                "by_operator": qoe_by_operator,
+            }
+        except ImportError:
+            qoe_data = None
+
+        # ── Scorecard ────────────────────────────────────────────────────────
+        try:
+            from scorecard.models import OperatorScore
+            latest_score_period = (
+                OperatorScore.objects.filter(is_deleted=False)
+                .order_by("-period")
+                .values_list("period", flat=True)
+                .first()
+            )
+            latest_scores = []
+            if latest_score_period:
+                latest_scores = list(
+                    OperatorScore.objects.filter(
+                        is_deleted=False, period=latest_score_period
+                    )
+                    .select_related("operator")
+                    .order_by("rank")
+                    .values(
+                        "operator__name", "operator__code",
+                        "composite_score", "rank",
+                        "coverage_score", "qoe_score",
+                        "complaints_score", "qos_score",
+                    )
+                )
+
+            scorecard_data = {
+                "latest_scores": latest_scores,
+                "latest_period": str(latest_score_period) if latest_score_period else None,
+            }
+        except ImportError:
+            scorecard_data = None
+
+        # ── Alerts ───────────────────────────────────────────────────────────
+        try:
+            all_subs = AlertSubscription.objects.filter(is_deleted=False)
+            alerts_data = {
+                "total_subscribers": all_subs.count(),
+                "confirmed": all_subs.filter(is_confirmed=True).count(),
+                "active": all_subs.filter(is_active=True, is_confirmed=True).count(),
+                "alerts_sent_30d": AlertLog.objects.filter(
+                    is_deleted=False, status="SENT",
+                    sent_at__gte=thirty_days_ago,
+                ).count(),
+                "alerts_failed_30d": AlertLog.objects.filter(
+                    is_deleted=False, status="FAILED",
+                    created_at__gte=thirty_days_ago,
+                ).count(),
+            }
+        except Exception:
+            alerts_data = None
 
         # ── Content ──────────────────────────────────────────────────────────
         content_data = {
@@ -650,6 +914,7 @@ class StaffDashboardView(APIView):
             "tenders": {
                 "total": Tender.objects.filter(is_deleted=False).count(),
                 "open": Tender.objects.filter(is_deleted=False, status__in=[TenderStatus.OPEN, TenderStatus.CLOSING_SOON]).count(),
+                "closing_soon": Tender.objects.filter(is_deleted=False, status=TenderStatus.CLOSING_SOON).count(),
                 "awarded": Tender.objects.filter(is_deleted=False, status=TenderStatus.AWARDED).count(),
             },
             "news": {
@@ -669,8 +934,13 @@ class StaffDashboardView(APIView):
             "users": user_data,
             "licensing": licence_data,
             "applications": app_data,
+            "domains": domain_data,
             "complaints": complaint_data,
             "telecoms": telecoms_data,
+            "coverage": coverage_data,
+            "qoe": qoe_data,
+            "scorecard": scorecard_data,
+            "alerts": alerts_data,
             "content": content_data,
             "notifications": notification_data,
         }
