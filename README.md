@@ -188,8 +188,17 @@ python manage.py migrate
 # Create superuser
 python manage.py createsuperuser
 
-# Seed demo data
-python manage.py seed_data
+# Seed demo data (run each module individually)
+python manage.py seed_licensing
+python manage.py seed_domains
+python manage.py seed_tenders
+python manage.py seed_publications
+python manage.py seed_news
+python manage.py seed_complaints
+python manage.py seed_coverages
+python manage.py seed_qoe
+python manage.py seed_scorecard
+python manage.py seed_alerts
 
 # Run development server
 python manage.py runserver
