@@ -207,3 +207,59 @@ class TenderAward(BaseModel):
 
     def __str__(self):
         return f"Awarded to {self.awardee_name} — {self.tender.reference_number}"
+
+
+# ─── TENDER APPLICATION STATUS ────────────────────────────────────────────────
+
+class TenderApplicationStatus(models.TextChoices):
+    SUBMITTED  = "SUBMITTED",  "Submitted"
+    UNDER_REVIEW = "UNDER_REVIEW", "Under Review"
+    SHORTLISTED = "SHORTLISTED", "Shortlisted"
+    REJECTED   = "REJECTED",   "Rejected"
+    WITHDRAWN  = "WITHDRAWN",  "Withdrawn"
+
+
+# ─── TENDER APPLICATION ───────────────────────────────────────────────────────
+
+class TenderApplication(BaseModel):
+    """An application / bid submitted by a user for a specific tender."""
+
+    tender = models.ForeignKey(
+        Tender,
+        on_delete=models.CASCADE,
+        related_name="applications",
+    )
+    applicant = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tender_applications",
+    )
+    reference_number = models.CharField(max_length=50, unique=True, editable=False)
+    company_name = models.CharField(max_length=300)
+    company_registration = models.CharField(max_length=100, blank=True)
+    contact_person = models.CharField(max_length=200)
+    contact_email = models.EmailField()
+    contact_phone = models.CharField(max_length=30, blank=True)
+    proposal_summary = models.TextField(
+        help_text="Brief summary of your proposal / bid.",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=TenderApplicationStatus.choices,
+        default=TenderApplicationStatus.SUBMITTED,
+        db_index=True,
+    )
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = [("tender", "applicant")]
+
+    def __str__(self):
+        return f"{self.reference_number} — {self.company_name}"
+
+    def save(self, *args, **kwargs):
+        if not self.reference_number:
+            import uuid as _uuid
+            short = _uuid.uuid4().hex[:8].upper()
+            self.reference_number = f"TA-{short}"
+        super().save(*args, **kwargs)

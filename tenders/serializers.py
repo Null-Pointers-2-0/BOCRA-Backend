@@ -6,6 +6,7 @@ from rest_framework import serializers
 from .models import (
     Tender,
     TenderAddendum,
+    TenderApplication,
     TenderAward,
     TenderCategory,
     TenderDocument,
@@ -181,3 +182,32 @@ class TenderDocumentUploadSerializer(serializers.ModelSerializer):
     class Meta:
         model = TenderDocument
         fields = ["title", "file"]
+
+
+# ─── TENDER APPLICATION ──────────────────────────────────────────────────────
+
+class TenderApplicationCreateSerializer(serializers.Serializer):
+    """Serializer for creating a tender application; validated in view."""
+
+    tender = serializers.UUIDField()
+    company_name = serializers.CharField(max_length=300)
+    company_registration = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    contact_person = serializers.CharField(max_length=200)
+    contact_email = serializers.EmailField()
+    contact_phone = serializers.CharField(max_length=30, required=False, allow_blank=True)
+    proposal_summary = serializers.CharField()
+
+
+class TenderApplicationListSerializer(serializers.ModelSerializer):
+    tender_title = serializers.CharField(source="tender.title", read_only=True)
+    tender_reference = serializers.CharField(source="tender.reference_number", read_only=True)
+    status_display = serializers.CharField(source="get_status_display", read_only=True)
+
+    class Meta:
+        model = TenderApplication
+        fields = [
+            "id", "reference_number", "tender", "tender_title",
+            "tender_reference", "company_name", "status", "status_display",
+            "created_at",
+        ]
+        read_only_fields = fields
