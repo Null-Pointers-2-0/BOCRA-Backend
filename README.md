@@ -1,6 +1,6 @@
-# BOCRA Digital Platform — Backend
+# BOCRA Backend Digital Platform
 
-> A modern, unified, API-first web platform built to replace BOCRA's fragmented digital infrastructure.
+> A unified, API-first web platform built to replace BOCRA's fragmented digital infrastructure.
 
 **BOCRA Youth Hackathon — Website Development Challenge**
 
@@ -10,8 +10,8 @@
 | Submission Deadline | **27 March 2026 \| 17:00hrs CAT** |
 | Backend Stack | Django 5.x + Django REST Framework (DRF) |
 | Frontend Stack | React / Next.js (separate repo) |
-| Database | SQLite3 (dev) / PostgreSQL (prod) |
-| Deployment | Any Linux server + Gunicorn + Nginx |
+| Database | SQLite |
+| Deployment | AWS Lightsail + Gunicorn + Nginx |
 
 ---
 
@@ -181,11 +181,8 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Copy environment file and configure
-cp .env .env.backup  # optional — back up your existing .env
-# Edit .env with your local settings
-
-# Run migrations
+# Set up database
+python manage.py makemigrations
 python manage.py migrate
 
 # Create superuser
