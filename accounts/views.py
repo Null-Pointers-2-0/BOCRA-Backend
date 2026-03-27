@@ -411,7 +411,11 @@ class PasswordResetRequestView(APIView):
 
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             token = default_token_generator.make_token(user)
-            send_password_reset_email.delay(str(user.id), uid, token)
+            try:
+                send_password_reset_email.delay(str(user.id), uid, token)
+            except Exception:
+                logger.warning("Celery unavailable — sending password reset email synchronously.")
+                send_password_reset_email(str(user.id), uid, token)
         except User.DoesNotExist:
             pass
 
