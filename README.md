@@ -10,8 +10,8 @@
 | Submission Deadline | **27 March 2026 \| 17:00hrs CAT** |
 | Backend Stack | Django 5.x + Django REST Framework (DRF) |
 | Frontend Stack | React / Next.js (separate repo) |
-| Database | PostgreSQL 16 |
-| Deployment | AWS EC2 + Gunicorn + Nginx |
+| Database | SQLite3 (dev) / PostgreSQL (prod) |
+| Deployment | Any Linux server + Gunicorn + Nginx |
 
 ---
 
@@ -26,10 +26,10 @@
 - [Running Locally](#running-locally)
 - [API Documentation](#api-documentation)
 - [Testing](#testing)
+- [Innovative Features](#innovative-features)
 - [Platform Modules](#platform-modules)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
-- [Submission Checklist](#submission-checklist)
 
 ---
 
@@ -70,9 +70,10 @@ The platform is built **API-first**. Django + DRF is the single backend serving 
 │  Celery (Background Tasks)  │  Channels (WebSockets)    │
 └────────┬───────────┬────────┴───────────────────────────┘
          │           │
-    ┌────▼──┐   ┌────▼──┐   ┌────────┐
-    │ Postgres│   │ Redis │   │ S3/MinIO│
-    └────────┘   └───────┘   └────────┘
+    ┌──────────┐   ┌─────────────────────┐
+    │ SQLite3  │   │  Local Media Storage │
+    │  (dev)   │   │     (/media/)        │
+    └──────────┘   └─────────────────────┘
 ```
 
 > Full architecture documentation: [docs/architecture.md](docs/architecture.md)
@@ -86,16 +87,14 @@ The platform is built **API-first**. Django + DRF is the single backend serving 
 | Framework | Django 5.x | Core web framework |
 | API | Django REST Framework 3.15.x | REST API toolkit |
 | Auth | SimpleJWT | JWT access + refresh tokens |
-| Database | PostgreSQL 16 | Primary data store |
-| Cache / Broker | Redis | Caching + Celery broker |
+| Database | SQLite3 (dev) | Rapid prototyping; swap for PostgreSQL in production |
 | Background Tasks | Celery | Email notifications, report generation |
 | Real-time | Django Channels | WebSocket support for live dashboards |
-| File Storage | AWS S3 / MinIO | Document uploads, certificates |
+| File Storage | Local filesystem (`/media/`) | Document uploads and certificates stored locally |
 | API Docs | drf-spectacular | Auto-generated OpenAPI / Swagger |
 | Testing | pytest-django + coverage | Unit and integration tests |
 | Web Server | Nginx | Reverse proxy — routes traffic to Gunicorn |
 | App Server | Gunicorn | Python WSGI HTTP server for production |
-| CI/CD | GitHub Actions | Automated testing and deployment |
 
 ---
 
@@ -138,8 +137,7 @@ BOCRA-Backend/
 │   ├── data-models.md
 │   ├── srs.md
 │   ├── security.md
-│   ├── deployment.md
-│   └── submission-checklist.md
+│   └── deployment.md
 └── README.md
 ```
 
@@ -150,12 +148,10 @@ BOCRA-Backend/
 ### Prerequisites
 
 - Python 3.11+
-- PostgreSQL 16
-- Redis
 
 ### Environment Variables
 
-Create a `.env` file in the project root (see `.env.example`):
+Create a `.env` file in the project root:
 
 ```env
 # Django
@@ -163,19 +159,9 @@ DJANGO_SECRET_KEY=your-secret-key-here
 DJANGO_DEBUG=True
 DJANGO_ALLOWED_HOSTS=localhost,127.0.0.1
 
-# Database
-DATABASE_URL=postgres://bocra:bocra@localhost:5432/bocra_db
-
-# Redis
-REDIS_URL=redis://localhost:6379/0
-
 # JWT
 JWT_ACCESS_TOKEN_LIFETIME=15        # minutes
 JWT_REFRESH_TOKEN_LIFETIME=10080    # minutes (7 days)
-
-# File Storage
-AWS_STORAGE_BUCKET_NAME=bocra-uploads
-AWS_S3_ENDPOINT_URL=http://localhost:9000  # MinIO for local dev
 
 # Email
 EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
@@ -184,24 +170,46 @@ EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 ### Running Locally
 
 ```bash
+# Clone the repository
+git clone https://github.com/your-team/BOCRA-Backend.git
+cd BOCRA-Backend
+
 # Create virtual environment
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-# venv\Scripts\activate   # Windows
+python3.11 -m venv venv
+source venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Set up database
-createdb bocra_db  # or use pgAdmin
+# Copy environment file and configure
+cp .env .env.backup  # optional — back up your existing .env
+# Edit .env with your local settings
+
+# Run migrations
 python manage.py migrate
 
 # Create superuser
 python manage.py createsuperuser
 
+# Seed demo data
+python manage.py seed_data
+
 # Run development server
 python manage.py runserver
 ```
+
+### Production Deployment
+
+This platform can be deployed on **any Linux server** — a local on-premise machine, a private data centre, or a cloud VPS. Self-hosting aligns with the **Botswana Data Protection Act** by keeping citizen data within Botswana's jurisdiction.
+
+**Recommended stack for production:**
+- Ubuntu Server 22.04 LTS
+- Gunicorn (WSGI app server)
+- Nginx (reverse proxy)
+- PostgreSQL (primary database, replacing SQLite)
+- Supervisor or systemd (process management)
+
+> Detailed server setup steps are in [docs/deployment.md](docs/deployment.md).
 
 ---
 
@@ -278,6 +286,21 @@ coverage run manage.py test && coverage report
 
 ---
 
+## Innovative Features
+
+| Feature | Description |
+|---|---|
+| **AI Digital Assistant** | Embedded chatbot (Groq / Llama 3.3-70B) that understands natural language queries — navigates the platform on your behalf, checks domain availability, tracks complaints, fetches live tenders and news, and guides users through licence applications. Entirely server-side; API key never exposed to the browser. |
+| **Unified API-first Architecture** | Single Django + DRF backend powers the public website, citizen portal, and admin portal. All data is live — no static pages. |
+| **Real-time Notifications** | Django Channels WebSocket layer delivers instant in-app alerts on case updates, application status changes, and new tenders. |
+| **Complaint Lifecycle Tracking** | Citizens receive a unique reference number on submission and can track status without needing an account. Staff get a full case management queue with assignment and resolution workflow. |
+| **Licence Verification API** | Public endpoint for businesses and citizens to instantly verify whether a BOCRA licence is valid — no phone calls or office visits required. |
+| **QoS Analytics Dashboard** | Live quality-of-service metrics and telecoms statistics surfaced through a dedicated analytics API, enabling data-driven regulatory decisions. |
+| **Role-Based Access Control** | Granular permissions — citizen, licensee, staff, and admin roles — enforced at the API layer with JWT auth. |
+| **OpenAPI documentation** | Auto-generated Swagger UI (`/api/swagger/`) and ReDoc (`/api/redoc/`) ship with the platform, making third-party integration straightforward. |
+
+---
+
 ## Platform Modules
 
 ### MVP Scope (Hackathon Demo)
@@ -314,8 +337,7 @@ Detailed documentation lives in the [`docs/`](docs/) folder:
 | [Data Models](docs/data-models.md) | All entity schemas and relationships |
 | [SRS](docs/srs.md) | Full Software Requirements Specification |
 | [Security](docs/security.md) | Security requirements, auth flow, threat mitigations |
-| [Deployment](docs/deployment.md) | Gunicorn + Nginx setup, CI/CD pipeline, AWS deployment |
-| [Submission Checklist](docs/submission-checklist.md) | Hackathon deliverables and status tracking |
+| [Deployment](docs/deployment.md) | Gunicorn + Nginx setup, server deployment guide |
 
 ### API Reference (`docs/api/`)
 
@@ -353,21 +375,6 @@ refactor(module): description — code refactoring
 test(module): description     — adding tests
 chore: description            — tooling, deps, config
 ```
-
----
-
-## Submission Checklist
-
-| Item | Status |
-|---|---|
-| Live URL — deployed and accessible | ⬜ TODO |
-| Source code on GitHub | ⬜ TODO |
-| README — setup, installation, how to run | ✅ Done |
-| Walkthrough video (5-10 min) | ⬜ TODO |
-| Technical proposal (max 10 pages) | ⬜ TODO |
-| OpenAPI docs at `/api/swagger/` | ✅ Done |
-
-**Deadline: 27 March 2026 | 17:00hrs CAT**
 
 ---
 
