@@ -683,17 +683,17 @@ class CoverageUploadListView(generics.ListAPIView):
 
 # -- STATS ENDPOINT (Staff) ---------------------------------------------------
 
-@extend_schema(tags=["Coverage Map — Staff"], summary="Coverage analytics and growth trends")
+@extend_schema(tags=["Coverage Map"], summary="Coverage analytics and growth trends")
 class CoverageStatsView(APIView):
     """
     GET /api/v1/coverages/stats/
 
     Coverage analytics: growth trends over time, top/bottom coverage districts,
     operator expansion tracking.
-    Auth: Staff
+    Auth: Public
     """
 
-    permission_classes = [IsAuthenticated, IsStaff]
+    permission_classes = [AllowAny]
 
     def get(self, request):
         technology = request.query_params.get("technology", "4G")
